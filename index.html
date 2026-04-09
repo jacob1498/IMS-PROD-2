@@ -213,6 +213,10 @@
         .col-actions { width: 70px; display: flex; gap: 8px; justify-content: flex-end; }
         .col-ts { display: none; } /* Hide raw timestamps from main list to keep excel look */
 
+        .status-counted { background: #dcfce7; color: #166534; border: 1px solid #166534; }
+        .status-pending { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+        .checkbox-col { width: 30px; display: flex; align-items: center; justify-content: center; }
+
         .btn-action-sm {
             background: none;
             border: none;
@@ -1147,6 +1151,23 @@
                         <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 15px; text-align: center;">Total unique locations completed in Reserved areas.</p>
                     </div>
 
+                    <div class="card" style="border-top: 4px solid #6366f1;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <span class="material-symbols-outlined" style="color:#6366f1; font-size: 32px;">pie_chart</span>
+                            <h3 style="margin:0">Location Completion</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="width: 120px; height: 120px;">
+                                <canvas id="completionChartCanvas"></canvas>
+                            </div>
+                            <div style="flex: 1;">
+                                <div id="completionRateLabel" style="font-size: 1.8rem; font-weight: 800; color: var(--primary);">0%</div>
+                                <div style="font-size: 0.7rem; color: var(--text-light); text-transform: uppercase; font-weight: 700;">Counting Progress</div>
+                                <div id="completionCountLabel" style="font-size: 0.85rem; margin-top: 5px; color: var(--text-light);">0 / 0 Locations</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card" style="border-top: 4px solid var(--primary);">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                             <span class="material-symbols-outlined" style="color:var(--primary); font-size: 32px;">assessment</span>
@@ -1230,10 +1251,25 @@
                     </div>
                     <div id="scheduleVisualWrapper" class="hidden sched-visual-grid" style="padding: 15px;"></div>
                     <div id="scheduleStorageWrapper" class="hidden">
+                         <div class="input-group" style="padding: 15px; background: #f8fafc; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px;">
+                            <input type="text" id="filterAisle" placeholder="Aisle (1st Digit)" oninput="render()" style="max-width: 120px;">
+                            <input type="text" id="filterLevel" placeholder="Level (Number)" oninput="render()" style="max-width: 120px;">
+                            <select id="filterParity" onchange="render()" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+                                <option value="">All (Even/Odd)</option>
+                                <option value="even">Even (Mid)</option>
+                                <option value="odd">Odd (Mid)</option>
+                            </select>
+                            <div style="margin-left: auto; display: flex; gap: 8px;">
+                                <button onclick="bulkUpdateLocations('Counted')" style="background: var(--success); font-size: 0.75rem;">Mark Counted</button>
+                                <button onclick="bulkUpdateLocations('Pending')" style="background: var(--text-light); font-size: 0.75rem;">Mark Pending</button>
+                            </div>
+                         </div>
                          <div class="table-header">
+                            <div class="checkbox-col"><input type="checkbox" onclick="toggleSelectAllLocations(this.checked)"></div>
                             <div style="flex: 1;">Aisle</div>
                             <div style="flex: 1;">Area</div>
                             <div style="flex: 2;">Location</div>
+                            <div style="flex: 1; text-align: center;">Status</div>
                             <div style="flex: 0.6; text-align: right;">Actions</div>
                         </div>
                         <ul id="locationList" style="padding-bottom: 0;"></ul>
@@ -1501,6 +1537,7 @@
         let state = {
             members: [],
             historyFilterFromDate: '',
+            selectedLocationIds: new Set(),
             historyFilterToDate: '',
             scheduleFilterFromDate: '',
             scheduleFilterToDate: '',
@@ -1998,6 +2035,40 @@
                 finally { toggleLoader(false); event.target.value = ''; }
             };
             reader.readAsText(file);
+        }
+
+        function toggleSelectAllLocations(checked) {
+            state.selectedLocationIds.clear();
+            if (checked) {
+                const filtered = getFilteredLocations();
+                filtered.forEach(l => state.selectedLocationIds.add(l.id));
+            }
+            render();
+        }
+
+        function toggleLocationCheckbox(id) {
+            if (state.selectedLocationIds.has(id)) state.selectedLocationIds.delete(id);
+            else state.selectedLocationIds.add(id);
+            render();
+        }
+
+        async function bulkUpdateLocations(newStatus) {
+            if (state.selectedLocationIds.size === 0) return showToast("No locations selected!", "error");
+            toggleLoader(true);
+            const { error } = await supabaseClient.from('locations').update({ status: newStatus }).in('id', Array.from(state.selectedLocationIds));
+            toggleLoader(false);
+            if (error) showToast(error.message, "error");
+            else {
+                showToast(`Updated ${state.selectedLocationIds.size} locations to ${newStatus}`, "success");
+                state.selectedLocationIds.clear();
+                fetchInitialData();
+            }
+        }
+
+        async function updateSingleLocationStatus(id, newStatus) {
+            const { error } = await supabaseClient.from('locations').update({ status: newStatus }).eq('id', id);
+            if (error) showToast(error.message, "error");
+            else fetchInitialData();
         }
 
         let html5QrCode = null;
@@ -2544,6 +2615,23 @@
             render();
         }
 
+        function getFilteredLocations() {
+            const aisleFilter = document.getElementById('filterAisle')?.value.toLowerCase() || '';
+            const levelFilter = document.getElementById('filterLevel')?.value || '';
+            const parityFilter = document.getElementById('filterParity')?.value || '';
+
+            return state.locations.filter(loc => {
+                const l = loc.location || '';
+                const numericPart = l.match(/\d+/)?.[0] || '0';
+                
+                const matchAisle = !aisleFilter || l.toLowerCase().startsWith(aisleFilter);
+                const matchLevel = !levelFilter || l.includes(levelFilter);
+                const matchParity = !parityFilter || (parityFilter === 'even' ? parseInt(numericPart) % 2 === 0 : parseInt(numericPart) % 2 !== 0);
+                
+                return matchAisle && matchLevel && matchParity;
+            });
+        }
+
         function showMemberDetails(index) {
             const m = state.members[index];
             const body = document.getElementById('modalBody');
@@ -2780,6 +2868,7 @@
         function renderCycleCountChart() {
             const canvas = document.getElementById('cycleCountChartCanvas');
             if (!canvas || typeof Chart === 'undefined') return;
+            renderCompletionChart();
             const ctx = canvas.getContext('2d');
             
             const roleStats = {};
@@ -2813,6 +2902,36 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' } },
                     scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function renderCompletionChart() {
+            const canvas = document.getElementById('completionChartCanvas');
+            if (!canvas) return;
+            const total = state.locations.length;
+            const counted = state.locations.filter(l => l.status === 'Counted').length;
+            const pending = total - counted;
+            const rate = total > 0 ? ((counted / total) * 100).toFixed(1) : 0;
+
+            document.getElementById('completionRateLabel').innerText = rate + '%';
+            document.getElementById('completionCountLabel').innerText = `${counted} / ${total} Locations`;
+
+            if (window.completionChart instanceof Chart) window.completionChart.destroy();
+            window.completionChart = new Chart(canvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Counted', 'Pending'],
+                    datasets: [{
+                        data: [counted, pending],
+                        backgroundColor: ['#22c55e', '#e2e8f0'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: { legend: { display: false } },
+                    maintainAspectRatio: false
                 }
             });
         }
@@ -3034,13 +3153,18 @@
                 if(scheduleStorageWrapper) scheduleStorageWrapper.classList.remove('hidden');
                 if(scheduleEmptyState) scheduleEmptyState.classList.add('hidden');
                 
+                const filteredLocs = getFilteredLocations();
                 const locationList = document.getElementById('locationList');
                 if (locationList) {
-                    locationList.innerHTML = state.locations.map(loc => `
+                    locationList.innerHTML = filteredLocs.map(loc => `
                         <li class="schedule-row">
+                            <div class="checkbox-col"><input type="checkbox" ${state.selectedLocationIds.has(loc.id) ? 'checked' : ''} onchange="toggleLocationCheckbox('${loc.id}')"></div>
                             <div style="flex: 1;">${loc.aisle || '--'}</div>
                             <div style="flex: 1;">${loc.area || '--'}</div>
                             <div style="flex: 2; font-weight: 700; color: var(--primary);">${loc.location || '--'}</div>
+                            <div style="flex: 1; text-align: center;">
+                                <span class="status-badge ${loc.status === 'Counted' ? 'status-counted' : 'status-pending'}" onclick="updateSingleLocationStatus('${loc.id}', '${loc.status === 'Counted' ? 'Pending' : 'Counted'}')" style="cursor:pointer">${loc.status || 'Pending'}</span>
+                            </div>
                             <div style="flex: 0.6; display: flex; justify-content: flex-end; padding-right: 5px;">
                                 <button class="btn-action-sm" onclick="deleteLocation('${loc.id}')" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
                             </div>
