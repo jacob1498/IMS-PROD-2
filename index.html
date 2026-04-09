@@ -2381,6 +2381,10 @@
                     userid: id,
                     username: m.name,
                     action: action,
+                    time_in: action === 'Present' ? timeStr : (m.timein || '--'),
+                    break_out: action === 'On Break' ? timeStr : (m.breakout || '--'),
+                    break_in: action === 'Break In' ? timeStr : (m.breakin || '--'),
+                    time_out: action === 'Away' ? timeStr : (m.timeout || '--'),
                     timestamp: now.toISOString(),
                     operational_date: opDate
                 });
@@ -2958,7 +2962,8 @@
             if (error) return showToast(error.message, "error");
             if (!data || data.length === 0) return showToast("No logs found for selected range!", "info");
 
-            const headers = ["User ID", "Username", "Action", "Timestamp", "Operational Date"];
+            
+            const headers = ["User ID", "Username", "Action", "Time In", "Break Out", "Break In", "Time Out", "Timestamp", "Operational Date"];
             const csvRows = [headers.join(",")];
 
             data.forEach(log => {
@@ -2966,6 +2971,10 @@
                     log.userid,
                     log.username,
                     log.action,
+                    log.time_in || '--',
+                    log.break_out || '--',
+                    log.break_in || '--',
+                    log.time_out || '--',
                     new Date(log.timestamp).toLocaleString(),
                     log.operational_date
                 ];
@@ -3868,8 +3877,6 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Add auto-refresh every 2 seconds to ensure sync across all devices
-            setInterval(() => fetchInitialData(), 2000);
         } else {
             render();
         }
