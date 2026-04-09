@@ -1810,10 +1810,11 @@
             if (showLoader) toggleLoader(true);
             
             try {
-                const { data: members } = await supabaseClient.from('members').select('*');
-                const { data: tasks } = await supabaseClient.from('tasks').select('*');
-                const { data: schedules } = await supabaseClient.from('schedules').select('*');
-                const { data: locations } = await supabaseClient.from('locations').select('*');
+                // Added .limit(5000) to override the default 1000 row limit
+                const { data: members } = await supabaseClient.from('members').select('*').limit(5000);
+                const { data: tasks } = await supabaseClient.from('tasks').select('*').limit(5000);
+                const { data: schedules } = await supabaseClient.from('schedules').select('*').limit(5000);
+                const { data: locations } = await supabaseClient.from('locations').select('*').limit(5000);
                 
                 state.members = members || [];
                 state.tasks = tasks || [];
@@ -2621,12 +2622,15 @@
             const parityFilter = document.getElementById('filterParity')?.value || '';
 
             return state.locations.filter(loc => {
-                const l = loc.location || '';
-                const numericPart = l.match(/\d+/)?.[0] || '0';
-                
-                const matchAisle = !aisleFilter || l.toLowerCase().startsWith(aisleFilter);
-                const matchLevel = !levelFilter || l.includes(levelFilter);
-                const matchParity = !parityFilter || (parityFilter === 'even' ? parseInt(numericPart) % 2 === 0 : parseInt(numericPart) % 2 !== 0);
+                // Use 'area' field for metadata extraction per your request
+                const areaStr = loc.area || '';
+                const firstChar = areaStr.charAt(0).toLowerCase();
+                const numericMatch = areaStr.match(/\d+/);
+                const numericValue = numericMatch ? parseInt(numericMatch[0]) : null;
+
+                const matchAisle = !aisleFilter || firstChar === aisleFilter.toLowerCase();
+                const matchLevel = !levelFilter || (numericMatch && numericMatch[0].includes(levelFilter));
+                const matchParity = !parityFilter || (numericValue !== null && (parityFilter === 'even' ? numericValue % 2 === 0 : numericValue % 2 !== 0));
                 
                 return matchAisle && matchLevel && matchParity;
             });
