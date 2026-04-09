@@ -1613,8 +1613,14 @@
             try {
                 let result;
                 if (authMode === 'login') {
-                    result = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (!result.error) showToast("Welcome back!", "success");
+                    // Switching to Magic Link (OTP) requires Gmail confirmation for every login
+                    result = await supabaseClient.auth.signInWithOtp({ 
+                        email,
+                        options: {
+                            emailRedirectTo: window.location.origin 
+                        }
+                    });
+                    if (!result.error) showToast("Check your Gmail for the login link!", "success");
                 } else {
                     result = await supabaseClient.auth.signUp({ email, password });
                     if (!result.error) {
