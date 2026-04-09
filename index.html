@@ -1810,11 +1810,11 @@
             if (showLoader) toggleLoader(true);
             
             try {
-                // Added .limit(5000) to override the default 1000 row limit
-                const { data: members } = await supabaseClient.from('members').select('*').limit(5000);
-                const { data: tasks } = await supabaseClient.from('tasks').select('*').limit(5000);
-                const { data: schedules } = await supabaseClient.from('schedules').select('*').limit(5000);
-                const { data: locations } = await supabaseClient.from('locations').select('*').limit(5000);
+                // Set limit to 5000. Note: Ensure Supabase > Settings > API > Max Rows is also set to 5000.
+                const { data: members } = await supabaseClient.from('members').select('*').order('name').limit(5000);
+                const { data: tasks } = await supabaseClient.from('tasks').select('*').order('starttime', { ascending: false }).limit(5000);
+                const { data: schedules } = await supabaseClient.from('schedules').select('*').order('date').limit(5000);
+                const { data: locations } = await supabaseClient.from('locations').select('*').order('location').limit(5000);
                 
                 state.members = members || [];
                 state.tasks = tasks || [];
@@ -2622,14 +2622,16 @@
             const parityFilter = document.getElementById('filterParity')?.value || '';
 
             return state.locations.filter(loc => {
-                // Use 'area' field for metadata extraction per your request
-                const areaStr = loc.area || '';
-                const firstChar = areaStr.charAt(0).toLowerCase();
-                const numericMatch = areaStr.match(/\d+/);
+                // Extract logic based on the 'area' field
+                const areaStr = (loc.area || '').toString();
+                const firstChar = areaStr.charAt(0).toLowerCase(); // Aisle (1st Digit/Letter)
+                
+                // Find the number in the area string for Level and Mid logic
+                const numericMatch = areaStr.match(/\d+/); 
                 const numericValue = numericMatch ? parseInt(numericMatch[0]) : null;
 
-                const matchAisle = !aisleFilter || firstChar === aisleFilter.toLowerCase();
-                const matchLevel = !levelFilter || (numericMatch && numericMatch[0].includes(levelFilter));
+                const matchAisle = !aisleFilter || firstChar === aisleFilter.toLowerCase().charAt(0);
+                const matchLevel = !levelFilter || (numericMatch && numericMatch[0] === levelFilter);
                 const matchParity = !parityFilter || (numericValue !== null && (parityFilter === 'even' ? numericValue % 2 === 0 : numericValue % 2 !== 0));
                 
                 return matchAisle && matchLevel && matchParity;
