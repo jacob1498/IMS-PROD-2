@@ -3192,7 +3192,8 @@
             renderScheduleSection(); // Call a dedicated function for schedule rendering
 
             // Global search input value (defined once for consistency)
-            
+            const searchInput = document.getElementById('globalSearchInput');
+            const globalSearch = searchInput ? searchInput.value.toLowerCase() : '';
             
             const filteredSchedules = state.schedules.filter(s => {
                 const schedISO = toLocalISO(s.date);
@@ -3316,8 +3317,7 @@
             if (cycleBtn) cycleBtn.classList.toggle('active', activeSummarySubTab === 'cycle');
 
             // Global search logic
-            const searchInput = document.getElementById('globalSearchInput');
-            const globalSearch = searchInput ? searchInput.value.toLowerCase() : '';
+            
             const searchOverlay = document.getElementById('globalSearchOverlay');
 
             const regSearchInput = document.getElementById('registerSearchInput');
