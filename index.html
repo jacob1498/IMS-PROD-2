@@ -1511,7 +1511,7 @@
         // Initialize Supabase
         // REPLACE THESE WITH YOUR ACTUAL KEYS
         const supabaseUrl = 'https://enskmqmkvdrkttjlzusn.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuc2ttcW1rdmRya3R0amx6dXNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzkxMDQsImV4cCI6MjA5MDgxNTEwNH0.o1QFZP5TXyTfI3tveP1hjceOxnHsdjVdCNerq1Zmdho';
+        const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // IMPORTANT: Replace with your actual Supabase Anon Key. Consider using environment variables for production.
         
         let supabaseClient = null;
         try {
@@ -1605,9 +1605,19 @@
                 showToast("Supabase not configured!", "error");
                 return;
             }
-            const email = document.getElementById('email').value;
+            const emailInput = document.getElementById('email');
+            const authBtn = document.getElementById('authBtn');
+            const email = emailInput.value;
             const password = document.getElementById('password').value;
             const msg = document.getElementById('authMsg');
+
+            if (!email) return showToast("Please enter an email", "error");
+            
+            // Prevent double-clicking which triggers rate limits
+            authBtn.disabled = true;
+            const originalBtnText = authBtn.innerText;
+            authBtn.innerText = "Processing...";
+
             toggleLoader(true);
             
             try {
@@ -1620,7 +1630,26 @@
                             emailRedirectTo: window.location.origin 
                         }
                     });
-                    if (!result.error) showToast("Check your Gmail for the login link!", "success");
+                    if (result.error) {
+                        if (result.error.status === 429) {
+                            showToast("Rate limit exceeded. Please wait 60 seconds before trying again.", "error");
+                        } else {
+                            throw result.error;
+                        }
+                    } else {
+                        showToast("Check your Gmail for the login link!", "success");
+                        // Cooldown timer to prevent rate limit hits
+                        let seconds = 60;
+                        const timer = setInterval(() => {
+                            seconds--;
+                            authBtn.innerText = `Wait ${seconds}s`;
+                            if (seconds <= 0) {
+                                clearInterval(timer);
+                                authBtn.disabled = false;
+                                authBtn.innerText = originalBtnText;
+                            }
+                        }, 1000);
+                    }
                 } else {
                     result = await supabaseClient.auth.signUp({ email, password });
                     if (!result.error) {
@@ -1632,6 +1661,8 @@
             } catch (error) {
                 msg.innerText = error.message;
                 showToast(error.message, "error");
+                authBtn.disabled = false;
+                authBtn.innerText = originalBtnText;
             } finally {
                 toggleLoader(false);
             }
@@ -1923,6 +1954,7 @@
             document.getElementById('memberIdInput').value = '';
             document.getElementById('memberNameInput').value = '';
             document.getElementById('memberRoleInput').value = '';
+            document.getElementById('authMsg').innerText = ''; // Clear any previous error messages
             
             document.getElementById('registerModal').classList.remove('hidden');
             document.getElementById('memberIdInput').focus();
@@ -1954,6 +1986,9 @@
             
             if (!idInput.value || !nameInput.value || !roleInput.value) {
                 showToast("Please fill all fields!", "error");
+                return;
+            } else if (!/^[a-zA-Z0-9]+$/.test(idInput.value)) { // Basic alphanumeric validation for User ID
+                showToast("User ID must be alphanumeric!", "error");
                 return;
             }
 
@@ -3146,7 +3181,7 @@
         }
 
         // Render UI
-        function render() {
+        function render() { // Monolithic render function - consider breaking this down for better performance and maintainability
             const attendanceList = document.getElementById('attendanceList');
             const historyList = document.getElementById('historyList');
             const registerList = document.getElementById('registerList');
@@ -3154,12 +3189,11 @@
             const progressBar = document.getElementById('progress-bar');
 
             // Render Schedule
-            const scheduleList = document.getElementById('scheduleList');
-            const scheduleEmptyState = document.getElementById('scheduleEmptyState');
-            const scheduleTableWrapper = document.getElementById('scheduleTableWrapper');
-            const scheduleVisualWrapper = document.getElementById('scheduleVisualWrapper');
-            const scheduleStorageWrapper = document.getElementById('scheduleStorageWrapper');
+            renderScheduleSection(); // Call a dedicated function for schedule rendering
 
+            // Global search input value (defined once for consistency)
+            
+            
             const filteredSchedules = state.schedules.filter(s => {
                 const schedISO = toLocalISO(s.date);
                 if (!schedISO) return true;
@@ -3168,6 +3202,11 @@
                 return true;
             });
 
+            const scheduleList = document.getElementById('scheduleList');
+            const scheduleEmptyState = document.getElementById('scheduleEmptyState');
+            const scheduleTableWrapper = document.getElementById('scheduleTableWrapper');
+            const scheduleVisualWrapper = document.getElementById('scheduleVisualWrapper');
+            const scheduleStorageWrapper = document.getElementById('scheduleStorageWrapper');
             if (state.scheduleView === 'storage') {
                 if(scheduleTableWrapper) scheduleTableWrapper.classList.add('hidden');
                 if(scheduleVisualWrapper) scheduleVisualWrapper.classList.add('hidden');
@@ -3321,10 +3360,12 @@
                     if (el) el.classList.add('hidden');
                 });
                 const resSec = document.getElementById('searchResultsSection');
-                if (resSec) resSec.classList.toggle('hidden', globalSearch === '');
+                if (resSec) resSec.classList.toggle('hidden', globalSearch === ''); // Use the globalSearch variable
             }
 
             if (checkinUI) checkinUI.style.display = (isSearching || isMobile) ? 'none' : 'block';
+            // If details modal is open, re-render its content to reflect any realtime changes
+            if (!document.getElementById('detailsModal').classList.contains('hidden')) showMemberDetails(state.members.findIndex(m => m.userid === document.getElementById('modalBody').querySelector('.detail-row:nth-child(2) .detail-value').innerText));
             if (checkinH2) checkinH2.style.display = isSearching ? 'none' : 'block';
             if (historyUI) historyUI.style.display = isSearching ? 'none' : 'flex';
             if (historyH2) historyH2.style.display = isSearching ? 'none' : 'block';
@@ -3342,14 +3383,14 @@
             const filteredRegister = state.members
                 .map((m, i) => ({ ...m, index: i }))
                 .filter(m => 
-                    (m.name.toLowerCase().includes(globalSearch) || (m.userid && m.userid.toLowerCase().includes(globalSearch))) &&
+                    (m.name.toLowerCase().includes(globalSearch) || (m.userid && m.userid.toLowerCase().includes(globalSearch))) && // Use globalSearch
                     (m.name.toLowerCase().includes(regSearch) || (m.userid && m.userid.toLowerCase().includes(regSearch)))
                 );
 
             // Render Attendance List (Check-in view)
             const checkedInMembers = state.members
                 .map((m, i) => ({ ...m, index: i }))
-                .filter(m => m.status !== 'Away' && 
+                .filter(m => m.status !== 'Away' && // Use globalSearch
                     (m.name.toLowerCase().includes(globalSearch) || m.userid.toLowerCase().includes(globalSearch))
                 );
 
@@ -3394,7 +3435,7 @@
                     </div>
                 </li>
             `).join('') : `<div class="empty-state">${globalSearch ? 'No matching members found.' : 'No one checked in yet. Scan ID to start.'}</div>`;
-
+            
             if (checkedInMembers.length > checkinLimit) {
                 attendanceList.innerHTML += `
                     <div style="padding: 15px; text-align: center;">
@@ -3408,7 +3449,7 @@
             const checkedOutMembers = state.members
                 .map((m, i) => ({ ...m, index: i }))
                 .filter(m => {
-                    const matchesSearch = m.name.toLowerCase().includes(globalSearch) || m.userid.toLowerCase().includes(globalSearch);
+                    const matchesSearch = m.name.toLowerCase().includes(globalSearch) || m.userid.toLowerCase().includes(globalSearch); // Use globalSearch
                     const isAwayAndTimedIn = m.status === 'Away' && m.timein && m.timein !== '--';
 
                     if (!isAwayAndTimedIn) return false;
@@ -3457,7 +3498,7 @@
                         </li>`;
                 });
                 historyList.innerHTML = historyHtml;
-                
+
                 if (checkedOutMembers.length > historyLimit) {
                     historyList.innerHTML += `
                         <div style="padding: 15px; text-align: center;">
@@ -3473,7 +3514,7 @@
                 const taskMatches = state.tasks
                     .map((t, i) => ({ ...t, index: i }))
                     .filter(t => t.location && t.location.toLowerCase().includes(globalSearch))
-                    .map(t => ({
+                    .map(t => ({ // Map to a common structure for search results
                         name: t.location,
                         userid: t.userid,
                     role: `Counter: ${t.username} (${t.bintype || 'Pick'})`,
@@ -3494,7 +3535,7 @@
                 const globalSearchResults = document.getElementById('globalSearchResults');
                 if (globalSearchResults) {
                     globalSearchResults.innerHTML = uniqueResults.map(m => `
-                        <li onclick="handleSearchResultClick('${m.type}', ${m.isTask ? m.taskIndex : m.index}, ${!!m.isTask})" style="cursor:pointer">
+                        <li onclick="handleSearchResultClick('${m.type}', ${m.isTask ? m.taskIndex : m.index}, ${m.isTask})" style="cursor:pointer">
                             <div class="col-info">
                                 <div style="font-size:0.65rem; color:var(--primary); font-weight:800; text-transform:uppercase">${m.type}</div>
                                 ${highlightMatch(m.name, globalSearch)}
@@ -3514,10 +3555,10 @@
             // Render Register List (Management view)
             if (registerList) {
                 const registerHeader = `
-                    <div class="table-header">
-                        <div class="col-id">User ID</div>
+                    <div class="table-header" style="${isSearching ? 'display:none;' : ''}">
+                        <div class="col-id">User ID</div> 
                         <div class="col-role">Role</div>
-                        <div class="col-info">Full Name</div>
+                        <div class="col-info">Full Name</div> 
                         <div class="col-actions-header">Action</div>
                     </div>`;
 
@@ -3525,7 +3566,7 @@
                 registerList.innerHTML = filteredRegister.length ? registerHeader + filteredRegister.slice(0, registerLimit).map((m) => `
                     <li>
                         <div class="col-id">${highlightMatch(m.userid, regSearch || globalSearch)}</div>
-                        <div class="col-role">${m.role || '--'}</div>
+                        <div class="col-role">${m.role || '--'}</div> 
                         <div class="col-info">
                             <div style="font-weight:600; font-size:0.9rem">${highlightMatch(m.name, regSearch || globalSearch)}</div>
                         </div>
@@ -3559,7 +3600,7 @@
                 .map((t, i) => ({ ...t, originalIndex: i }))
                 .filter(t => {
                     const matchesTab = activeProductivitySubTab === 'active' ? !t.completed : t.completed;
-                    const matchesSearch = !globalSearch || 
+                    const matchesSearch = !globalSearch || // Use the globalSearch variable defined earlier
                         (t.location && t.location.toLowerCase().includes(globalSearch)) || 
                         (t.userName && t.userName.toLowerCase().includes(globalSearch)) ||
                         (t.userid && t.userid.toLowerCase().includes(globalSearch));
@@ -3573,7 +3614,7 @@
             let taskHtml = "";
             
             if (tasksToShow.length === 0) {
-                taskHtml = `<div class="empty-state">${activeProductivitySubTab === 'active' ? 'No active sessions running.' : 'No completed history found.'}</div>`;
+                taskHtml = `<div class="empty-state">${globalSearch ? 'No matching tasks found.' : (activeProductivitySubTab === 'active' ? 'No active sessions running.' : 'No completed history found.')}</div>`;
             } else {
                 tasksToShow.slice(0, prodLimit).forEach(t => {
                     const i = t.originalIndex;
@@ -3659,7 +3700,7 @@
                     }
                 }
                 console.log(`Shift: ${s}, Operational Date: ${operationalISO}, Requirement: ${req}, Clocked In: ${shiftMembers.length}`);
-
+                
                 const total = shiftMembers.length; // Cumulative count (all who clocked in)
                 // "Present" counts everyone currently on site (not 'Away')
                 const present = shiftMembers.filter(m => m.status !== 'Away').length; 
@@ -3786,6 +3827,10 @@
             if (clockEl) clockEl.textContent = `${dateStr} | ${timeStr}`;
         }
         setInterval(updateClock, 1000);
+        
+        // Update dashboard summary more frequently for time-sensitive elements
+        // This helps with "Not realtime dashboard" for things like break durations
+        setInterval(() => { if (!document.getElementById('summarySection').classList.contains('hidden')) render(); }, 10000); // Update every 10 seconds if summary is visible
 
         // Swipe-to-Action Logic
         let touchStartX = 0;
@@ -3859,7 +3904,7 @@
                 }
             });
 
-            if (alertTriggered) playAlertSound();
+            if (alertTriggered && !document.getElementById('summarySection').classList.contains('hidden')) playAlertSound(); // Only play sound if summary is visible
         }
         setInterval(checkThresholdAlerts, 30000); // Check every 30 seconds
 
