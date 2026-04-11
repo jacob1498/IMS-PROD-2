@@ -2033,7 +2033,10 @@
                     } else {
                         const idx = state.excessScans.findIndex(s => s.id === payload.new.id);
                         if (idx > -1) state.excessScans[idx] = payload.new;
-                        else state.excessScans.unshift(payload.new);
+                        else {
+                            state.excessScans.unshift(payload.new);
+                            if (state.excessScans.length > 200) state.excessScans.pop();
+                        }
                     }
                     render();
                 })
