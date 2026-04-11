@@ -207,8 +207,8 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        #attendanceList, #historyList, #registerList, #excessScanList, #scheduleList, #checklistList, #taskList {
-            padding-bottom: 80px;
+        #attendanceList, #historyList, #registerList, #excessScanList, #scheduleList, #checklistList, #taskList, #locationList {
+            padding-bottom: calc(100px + env(safe-area-inset-bottom));
         }
 
         li {
@@ -510,7 +510,7 @@
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
 
-            .table-header { display: none; }
+            .table-header, #excessScanSection .table-header { display: none !important; }
             li { 
                 flex-direction: column; 
                 align-items: flex-start; 
@@ -771,11 +771,13 @@
                 display: flex !important; 
                 grid-template-columns: none !important; 
                 grid-template-areas: none !important;
-                border-left: none !important; 
+                border-left: 4px solid var(--border) !important; 
                 flex-direction: row !important;
-                box-shadow: none !important;
+                margin-bottom: 8px !important;
+                border-radius: 8px !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
             }
-            .schedule-row > div { font-size: 0.6rem !important; padding: 6px 2px !important; }
+            .schedule-row > div { font-size: 0.65rem !important; padding: 10px 4px !important; }
             .sched-shift-container { grid-template-columns: 1fr; }
         }
     </style>
