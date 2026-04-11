@@ -1978,6 +1978,8 @@
             } catch (err) {
                 console.error("Fetch error:", err);
                 if (showLoader) showToast("Failed to refresh data", "error");
+            } finally {
+                if (showLoader) toggleLoader(false);
             } 
         }
 
