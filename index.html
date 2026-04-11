@@ -163,7 +163,8 @@
             background: var(--card);
             border-top: 1px solid var(--border);
             padding: 8px 0;
-            z-index: 1000;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            z-index: 1100;
             justify-content: space-around;
             align-items: center;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
@@ -172,7 +173,7 @@
             display: flex; flex-direction: column; align-items: center; gap: 2px;
             background: none; border: none; color: var(--text-light);
             padding: 4px; font-size: 0.65rem; font-weight: 700; cursor: pointer;
-            width: 20%; transition: color 0.2s;
+            width: 16.6%; transition: color 0.2s;
         }
         .footer-nav-item.active { color: var(--primary); }
         .footer-nav-item .material-symbols-outlined { font-size: 24px; }
@@ -260,6 +261,20 @@
 
         .task-done { text-decoration: line-through; color: #94a3b8; }
         
+        /* Checklist Styles */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            border-bottom: 1px solid var(--bg);
+            transition: background 0.2s;
+        }
+        .checklist-item:hover { background: #f8fafc; }
+        .checklist-item label { flex: 1; cursor: pointer; font-weight: 500; }
+        .checklist-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        .checklist-item.completed label { text-decoration: line-through; color: var(--text-light); }
+
         .empty-state { text-align: center; color: var(--text-light); padding: 20px; font-style: italic; font-size: 0.9rem; }
         .col-duration { width: 60px; text-align: center; font-weight: 800; font-size: 0.85rem; }
 
@@ -445,7 +460,7 @@
 
         /* Media Queries should always be at the bottom to correctly override base styles */
         @media (max-width: 768px) {
-            body { padding: 0; padding-bottom: 80px; }
+            body { padding: 0; padding-bottom: calc(85px + env(safe-area-inset-bottom)); }
             .container { padding: 15px; width: 100%; box-sizing: border-box; }
             
             /* Hide only the main Attendance/Productivity toggle on mobile as it's in the footer/sidebar */
@@ -466,7 +481,6 @@
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
             .footer-nav { display: flex !important; }
-            body { padding-bottom: 80px; }
 
             .table-header { display: none; }
             li { 
@@ -819,6 +833,13 @@
                         <span class="material-symbols-outlined">description</span> Export PDF
                     </button>
                 </div>
+                
+                <div id="side-checklistMenu" class="sidebar-nav-group">
+                    <small>Daily Operations</small>
+                    <button id="side-checklistTabBtn" onclick="switchFooterTab('checklist'); toggleSidebar();">
+                        <span class="material-symbols-outlined">checklist</span> Daily Checklist
+                    </button>
+                </div>
 
                 <div id="side-scheduleMenu" class="sidebar-nav-group hidden">
                     <small>Schedule Management</small>
@@ -1124,6 +1145,14 @@
                 </div>
             </div>
 
+            <!-- Checklist Section -->
+            <div id="checklistSection" class="hidden">
+                <h2>Daily Operations Checklist</h2>
+                <div class="card" style="padding: 0;">
+                    <div id="checklistList"></div>
+                </div>
+            </div>
+
             <!-- Reports Section -->
             <div id="reportsSection" class="hidden">
                 <h2 style="border-bottom:none">Reports & Analytics</h2>
@@ -1397,6 +1426,10 @@
                 <span class="material-symbols-outlined">search</span>
                 <span>Search</span>
             </button>
+            <button class="footer-nav-item" onclick="switchFooterTab('checklist')" data-tab="checklist">
+                <span class="material-symbols-outlined">checklist</span>
+                <span>Checklist</span>
+            </button>
             <button class="footer-nav-item" onclick="switchFooterTab('reports')" data-tab="reports">
                 <span class="material-symbols-outlined">analytics</span>
                 <span>Reports</span>
@@ -1493,11 +1526,18 @@
 
         let state = {
             members: [],
-            attendance_logs: [],
             historyFilterFromDate: '',
             historyFilterToDate: '',
             scheduleFilterFromDate: '',
             scheduleFilterToDate: '',
+            checklist: [
+                { id: 1, task: "Verify Shift 1 Attendance Fulfillment", completed: false, category: "Attendance" },
+                { id: 2, task: "Review Active Productivity Sessions", completed: false, category: "Productivity" },
+                { id: 3, task: "Check for Long Break Alerts (>40m)", completed: false, category: "Attendance" },
+                { id: 4, task: "Ensure All Reserved Bins are Processed", completed: false, category: "Productivity" },
+                { id: 5, task: "Export Daily Attendance Report", completed: false, category: "Admin" },
+                { id: 6, task: "Clean Productivity History (Optional)", completed: false, category: "Admin" }
+            ],
             locations: [],
             tasks: [],
             schedules: [],
@@ -1607,11 +1647,13 @@
             const summarySection = document.getElementById('summarySection');
             const reportsSection = document.getElementById('reportsSection');
             const scheduleSection = document.getElementById('scheduleSection');
+            const checklistSection = document.getElementById('checklistSection');
 
             if(homeView) homeView.classList.toggle('hidden', tab !== 'home');
             if(summarySection) summarySection.classList.toggle('hidden', tab !== 'summary');
             if(reportsSection) reportsSection.classList.toggle('hidden', tab !== 'reports');
             if(scheduleSection) scheduleSection.classList.toggle('hidden', tab !== 'schedule');
+            if(checklistSection) checklistSection.classList.toggle('hidden', tab !== 'checklist');
 
             // Update active state in footer
             document.querySelectorAll('.footer-nav-item').forEach(btn => {
@@ -1619,20 +1661,23 @@
             });
 
             // Update sidebar active state
-            document.querySelectorAll('.side-nav-item').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tab);
-            });
+            const sideCheckBtn = document.getElementById('side-checklistTabBtn');
+            if (sideCheckBtn) {
+                sideCheckBtn.classList.toggle('active', tab === 'checklist');
+            }
 
             // Sync sidebar sub-menu visibility for all tabs
             const sideHome = document.getElementById('side-homeSubMenu');
             const sideSum = document.getElementById('side-summaryMenu');
             const sideRep = document.getElementById('side-reportsMenu');
             const sideSch = document.getElementById('side-scheduleMenu');
+            const sideChk = document.getElementById('side-checklistMenu');
 
             if (sideHome) sideHome.classList.toggle('hidden', tab !== 'home');
             if (sideSum) sideSum.classList.toggle('hidden', tab !== 'summary');
             if (sideRep) sideRep.classList.toggle('hidden', tab !== 'reports');
             if (sideSch) sideSch.classList.toggle('hidden', tab !== 'schedule');
+            if (sideChk) sideChk.classList.toggle('hidden', tab !== 'checklist');
 
             // Sync sidebar attendance views sub-menu visibility
             const sideAttSub = document.getElementById('side-attendanceSubMenu');
@@ -1655,6 +1700,7 @@
                 home: 'Team Dashboard', 
                 summary: 'Dashboard', 
                 reports: 'Reports', 
+                checklist: 'Daily Checklist',
                 schedule: 'Schedule' 
             };
             const headerTitle = document.querySelector('header h1');
@@ -1767,26 +1813,19 @@
             if (showLoader) toggleLoader(true);
             
             try {
-                // Fetch all data in parallel for speed
-                const [membersRes, logsRes, tasksRes, schedulesRes, locationsRes] = await Promise.all([
-                    supabaseClient.from('members').select('*'),
-                    supabaseClient.from('attendance_logs').select('*'),
-                    supabaseClient.from('tasks').select('*'),
-                    supabaseClient.from('schedules').select('*'),
-                    supabaseClient.from('locations').select('*')
-                ]);
-
-                if (membersRes.error) throw membersRes.error;
+                const { data: members } = await supabaseClient.from('members').select('*');
+                const { data: tasks } = await supabaseClient.from('tasks').select('*');
+                const { data: schedules } = await supabaseClient.from('schedules').select('*');
+                const { data: locations } = await supabaseClient.from('locations').select('*');
                 
-                state.members = membersRes.data || [];
-                state.attendance_logs = logsRes.data || [];
-                state.tasks = tasksRes.data || [];
-                state.schedules = schedulesRes.data || [];
-                state.locations = locationsRes.data || [];
+                state.members = members || [];
+                state.tasks = tasks || [];
+                state.schedules = schedules || [];
+                state.locations = locations || [];
                 render();
             } catch (err) {
                 console.error("Fetch error:", err);
-                if (showLoader) showToast(`Sync Error: ${err.message}`, "error");
+                if (showLoader) showToast("Failed to refresh data", "error");
             } finally {
                 if (showLoader) toggleLoader(false);
             }
@@ -1796,16 +1835,6 @@
             if (!supabaseClient) return;
 
             supabaseClient.channel('db-changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_logs' }, payload => {
-                    if (payload.eventType === 'DELETE') {
-                        state.attendance_logs = state.attendance_logs.filter(l => l.id !== payload.old.id);
-                    } else {
-                        const idx = state.attendance_logs.findIndex(l => l.id === payload.new.id);
-                        if (idx > -1) state.attendance_logs[idx] = payload.new;
-                        else state.attendance_logs.push(payload.new);
-                    }
-                    render();
-                })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, payload => {
                     if (payload.eventType === 'DELETE') {
                         state.members = state.members.filter(m => m.userid !== payload.old.userid);
@@ -2288,16 +2317,6 @@
             pendingUserId = null;
         }
 
-        function showLogDetails(id) {
-            const log = state.attendance_logs.find(l => l.id === id) || state.members.find(m => m.userid === id);
-            if (log) {
-                // Re-use showMemberDetails logic
-                showMemberDetails(log, true);
-            } else {
-                showToast("Details not found", "error");
-            }
-        }
-
         async function executeScanAction(action) {
             if (!pendingUserId) return;
             const ids = Array.isArray(pendingUserId) ? pendingUserId : [pendingUserId];
@@ -2349,42 +2368,11 @@
             }
 
             const { error } = await supabaseClient.from('members').update(updates).in('userid', validIds);
-            
-            // Archive to attendance_logs if Timing Out
-            if (!error && action === 'Away') {
-                const logsToInsert = validIds.map(id => {
-                    const m = state.members.find(member => member.userid === id);
-                    return {
-                        userid: m.userid,
-                        name: m.name,
-                        role: m.role,
-                        status: 'Away',
-                        date: m.date,
-                        shift: m.shift,
-                        timein: m.timein,
-                        breakout: m.breakout,
-                        breakin: m.breakin,
-                        timeout: timeStr
-                    };
-                });
-                await supabaseClient.from('attendance_logs').insert(logsToInsert);
-            }
-
             toggleLoader(false);
             if (error) showToast(error.message, "error");
             else showToast(`${action} successful for ${validIds.length} members!`, "success");
             
             closeScanActionModal();
-        }
-
-        function showLogDetails(id) {
-            // Look in current members or historical logs
-            const item = state.members.find(m => m.userid === id) || state.attendance_logs.find(l => l.id === id);
-            if (item) {
-                showMemberDetails(item, true);
-            } else {
-                showToast("Details not found", "error");
-            }
         }
 
         function scanAttendance() {
@@ -2612,30 +2600,24 @@
             render();
         }
 
-        function showMemberDetails(item, isLog = false) {
+        function showMemberDetails(index) {
+            const m = state.members[index];
             const body = document.getElementById('modalBody');
+            
             const title = document.querySelector('#detailsModal h3');
-            if (title) title.innerText = isLog ? "Attendance Session" : "Member Profile";
+            if (title) title.innerText = "Member Profile";
 
-            const m = item;
-            const timeInDisplay = m.timein || '--';
-            const breakOutDisplay = m.breakout || '--';
-            const breakInDisplay = m.breakin || '--';
-            const timeOutDisplay = m.timeout || '--';
-
-            // Logic to prevent showing "Dirty Data" from previous days in the active view
             body.innerHTML = `
                 <div class="detail-row"><span class="detail-label">Name</span><span class="detail-value">${m.name}</span></div>
                 <div class="detail-row"><span class="detail-label">User ID</span><span class="detail-value">${m.userid}</span></div>
                 <div class="detail-row"><span class="detail-label">Role</span><span class="detail-value">${m.role || '--'}</span></div>
-                <div class="detail-row"><span class="detail-label">Operational Date</span><span class="detail-value">${m.date || '--'}</span></div>
-                <div class="detail-row"><span class="detail-label">Active Shift</span><span class="detail-value">${m.shift || '--'}</span></div>
+                <div class="detail-row"><span class="detail-label">Shift</span><span class="detail-value">${m.shift || '--'}</span></div>
                 <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${m.status}</span></div>
                 <div style="margin: 15px 0 5px 0; font-size: 0.7rem; font-weight: 800; color: var(--primary); text-transform: uppercase;">Timestamps</div>
-                <div class="detail-row"><span class="detail-label">Time In</span><span class="detail-value">${timeInDisplay}</span></div>
-                <div class="detail-row"><span class="detail-label">Break Out</span><span class="detail-value">${breakOutDisplay}</span></div>
-                <div class="detail-row"><span class="detail-label">Break In</span><span class="detail-value">${breakInDisplay}</span></div>
-                <div class="detail-row"><span class="detail-label">Time Out</span><span class="detail-value">${timeOutDisplay}</span></div>
+                <div class="detail-row"><span class="detail-label">Time In</span><span class="detail-value">${m.timein || '--'}</span></div>
+                <div class="detail-row"><span class="detail-label">Break Out</span><span class="detail-value">${m.breakout || '--'}</span></div>
+                <div class="detail-row"><span class="detail-label">Break In</span><span class="detail-value">${m.breakin || '--'}</span></div>
+                <div class="detail-row"><span class="detail-label">Time Out</span><span class="detail-value">${m.timeout || '--'}</span></div>
             `;
             
             document.getElementById('detailsModal').classList.remove('hidden');
@@ -2662,10 +2644,18 @@
         };
 
         function showBreakList(type) {
-            const list = state.attendance_logs.filter(l => {
-                if (l.status !== 'On Break') return false;
-                const isLong = getBreakDuration(l.breakout) > 40;
-                return type === 'long' ? isLong : true;
+            const now = new Date();
+            const hour = now.getHours();
+            let currentShift = '3rd';
+            if (hour >= 6 && hour < 14) currentShift = '1st';
+            else if (hour >= 14 && hour < 22) currentShift = '2nd';
+
+            const list = state.members.filter(m => {
+                if (m.status !== 'On Break') return false;
+                const isLong = getBreakDuration(m.breakout) > 40;
+                // If viewing long breaks, also filter by the current shift
+                if (type === 'long') return isLong && m.shift === currentShift;
+                return true;
             });
 
             const title = document.querySelector('#detailsModal h3');
@@ -2706,7 +2696,7 @@
                 else if (type === 'User') switchAttendanceSubTab('register');
                 else switchAttendanceSubTab('checkin');
                 
-                showLogDetails(state.attendance_logs[index]?.id);
+                showMemberDetails(index);
             }
         }
 
@@ -2715,10 +2705,10 @@
             const operationalISO = getOperationalISO(now);
             const counterRoles = ['Direct Counter', 'Back up'];
             
-            let list = state.attendance_logs.filter(l => 
-                l.shift === shift && 
-                toLocalISO(l.date) === operationalISO && 
-                counterRoles.includes(l.role)
+            let list = state.members.filter(m => 
+                m.shift === shift && 
+                toLocalISO(m.date) === operationalISO && 
+                counterRoles.includes(m.role)
             );
 
             if (type === 'present') {
@@ -2750,8 +2740,9 @@
             const now = new Date();
             const operationalISO = getOperationalISO(now);
             const counterRoles = ['Direct Counter', 'Back up'];
-            const dailyLogs = state.attendance_logs.filter(l => 
-                counterRoles.includes(l.role) && toLocalISO(l.date) === operationalISO
+            const allCounters = state.members.filter(m => 
+                counterRoles.includes(m.role) && 
+                toLocalISO(m.date) === operationalISO
             );
             
             const activeTasks = state.tasks.filter(t => !t.completed);
@@ -2762,14 +2753,14 @@
 
             if (type === 'active') {
                 titleText = "Active Counters";
-                list = dailyLogs.filter(m => activeCounterIds.has(m.userid)).map(m => {
+                list = allCounters.filter(m => activeCounterIds.has(m.userid)).map(m => {
                     const task = activeTasks.find(t => t.userid === m.userid);
                     return { ...m, subText: `${task.location} (${task.bintype || 'Pick'}) • Running: ${calculateDuration(task.starttime)}` };
                 });
             } else if (type === 'inactive') {
                 titleText = "Inactive Counters";
                 const completedTasks = state.tasks.filter(t => t.completed);
-                list = dailyLogs.filter(m => !activeCounterIds.has(m.userid) && m.status !== 'Away').map(m => {
+                list = allCounters.filter(m => !activeCounterIds.has(m.userid) && m.status !== 'Away').map(m => {
                     const userTasks = completedTasks.filter(t => t.userid === m.userid);
                     const lastTask = userTasks.sort((a, b) => new Date(b.endtime) - new Date(a.endtime))[0];
                     let subText = m.status === 'On Break' ? 'On Break' : 'Available for Cycle Count';
@@ -2780,7 +2771,7 @@
                 });
             } else if (type === 'long') {
                 titleText = "Long Cycle Sessions (> 1Hr)";
-                list = dailyLogs.filter(m => {
+                list = allCounters.filter(m => {
                     const t = activeTasks.find(task => task.userid === m.userid);
                     if (!t || !t.starttime) return false;
                     const diff = (now - new Date(t.starttime)) / 3600000;
@@ -2791,7 +2782,7 @@
                 });
             } else if (type === 'break') {
                 titleText = "Designated Counters on Break";
-                list = dailyLogs.filter(m => m.status === 'On Break').map(m => ({ ...m, subText: `Break started at: ${m.breakout}` }));
+                list = allCounters.filter(m => m.status === 'On Break').map(m => ({ ...m, subText: `Break started at: ${m.breakout}` }));
             }
 
             const titleEl = document.querySelector('#detailsModal h3');
@@ -3215,6 +3206,7 @@
                     const el = document.getElementById(id);
                     if (el) el.classList.add('hidden');
                 });
+                if (checklistSection) checklistSection.classList.add('hidden');
                 const resSec = document.getElementById('searchResultsSection');
                 if (resSec) resSec.classList.toggle('hidden', globalSearch === '');
             }
@@ -3224,9 +3216,18 @@
             if (historyUI) historyUI.style.display = isSearching ? 'none' : 'flex';
             if (historyH2) historyH2.style.display = isSearching ? 'none' : 'block';
             if (registerUI) registerUI.style.display = isSearching ? 'none' : 'flex';
-            
-            // Ensure footer stays visible so user can exit search or navigate
-            if (footerNav) footerNav.style.display = 'flex';
+            const checklistList = document.getElementById('checklistList');
+            if (checklistList) {
+                checklistList.innerHTML = state.checklist.map(item => `
+                    <div class="checklist-item ${item.completed ? 'completed' : ''}">
+                        <input type="checkbox" id="chk-${item.id}" ${item.completed ? 'checked' : ''} onchange="toggleChecklistItem(${item.id})">
+                        <label for="chk-${item.id}">
+                            <span style="font-size: 0.65rem; color: var(--primary); font-weight: 800; display: block; text-transform: uppercase;">${item.category}</span>
+                            ${item.task}
+                        </label>
+                    </div>
+                `).join('');
+            }
             
             mainTabGroups.forEach(tg => tg.style.display = isSearching ? 'none' : '');
 
@@ -3242,10 +3243,11 @@
                 );
 
             // Render Attendance List (Check-in view)
-            const checkedInLogs = state.members.filter(l => 
-                l.status !== 'Away' && 
-                (l.name.toLowerCase().includes(globalSearch) || l.userid.toLowerCase().includes(globalSearch))
-            );
+            const checkedInMembers = state.members
+                .map((m, i) => ({ ...m, index: i }))
+                .filter(m => m.status !== 'Away' && 
+                    (m.name.toLowerCase().includes(globalSearch) || m.userid.toLowerCase().includes(globalSearch))
+                );
 
             const checkinHeader = `
                 <div class="table-header">
@@ -3262,56 +3264,59 @@
                 </div>`;
 
             const checkinLimit = displayLimits.checkin;
-            attendanceList.innerHTML = checkedInLogs.length ? checkinHeader + checkedInLogs.slice(0, checkinLimit).map((l) => `
+            attendanceList.innerHTML = checkedInMembers.length ? checkinHeader + checkedInMembers.slice(0, checkinLimit).map((m) => `
                 <li>
                     <div class="col-info">
-                        ${l.name}
+                        ${m.name}
                     </div>
                     <div class="mobile-meta-row">
-                        <span class="col-role">${l.role || '--'}</span>
+                        <span class="col-role">${m.role || '--'}</span>
                         <div class="col-status">
-                            <span class="status-badge ${l.status === 'Present' ? 'present' : 'on-break'}" onclick="event.stopPropagation()">
-                                ${l.status}
+                            <span class="status-badge ${m.status === 'Present' ? 'present' : 'on-break'}" onclick="event.stopPropagation()">
+                                ${m.status}
                             </span>
                         </div>
                     </div>
                     <div class="col-actions">
-                        <button class="btn-action-sm" onclick="processScannedUserId('${l.userid}')" title="Quick Actions">
+                        <button class="btn-action-sm" onclick="processScannedUserId('${m.userid}')" title="Quick Actions">
                             <span class="material-symbols-outlined">qr_code_2</span>
                         </button>
-                        <button class="btn-action-sm details" onclick="showLogDetails('${l.userid}')" title="View Details">
+                        <button class="btn-action-sm details" onclick="showMemberDetails(${m.index})" title="View Details">
                             <span class="material-symbols-outlined">info</span>
                         </button>
-                        <button class="btn-action-sm" onclick="resetAttendance(${state.members.findIndex(m => m.userid === l.userid)})" style="color:var(--danger)" title="Reset Attendance Record">
+                        <button class="btn-action-sm" onclick="resetAttendance(${m.index})" style="color:var(--danger)" title="Reset Attendance Record">
                             <span class="material-symbols-outlined">restart_alt</span>
                         </button>
                     </div>
                 </li>
             `).join('') : `<div class="empty-state">${globalSearch ? 'No matching members found.' : 'No one checked in yet. Scan ID to start.'}</div>`;
 
-            if (checkedInLogs.length > checkinLimit) {
+            if (checkedInMembers.length > checkinLimit) {
                 attendanceList.innerHTML += `
                     <div style="padding: 15px; text-align: center;">
                         <button onclick="loadMore('checkin')" style="width: 100%; background: var(--bg); color: var(--primary); border: 1px solid var(--border); padding: 10px; font-size: 0.85rem; font-weight: 600;">
-                            Load More (${checkedInLogs.length - checkinLimit} remaining)
+                            Load More (${checkedInMembers.length - checkinLimit} remaining)
                         </button>
                     </div>`;
             }
 
             // Render History List (Checked-out view)
-            const historyLogs = state.attendance_logs
-                .filter(l => {
-                    const matchesSearch = l.name.toLowerCase().includes(globalSearch) || l.userid.toLowerCase().includes(globalSearch);
-                    if (l.status !== 'Away') return false;
+            const checkedOutMembers = state.members
+                .map((m, i) => ({ ...m, index: i }))
+                .filter(m => {
+                    const matchesSearch = m.name.toLowerCase().includes(globalSearch) || m.userid.toLowerCase().includes(globalSearch);
+                    const isAwayAndTimedIn = m.status === 'Away' && m.timein && m.timein !== '--';
+
+                    if (!isAwayAndTimedIn) return false;
 
                     // Date filtering
-                    if (historyFromDate && l.date) {
-                        const memberDate = new Date(l.date);
+                    if (historyFromDate && m.date) {
+                        const memberDate = new Date(m.date);
                         const fromDate = new Date(historyFromDate);
                         if (memberDate < fromDate) return false;
                     }
-                    if (historyToDate && l.date) {
-                        const memberDate = new Date(l.date);
+                    if (historyToDate && m.date) {
+                        const memberDate = new Date(m.date);
                         const toDate = new Date(historyToDate);
                         if (memberDate > toDate) return false;
                     }
@@ -3320,14 +3325,14 @@
 
             if (historyList && !document.getElementById('historySubSection').classList.contains('hidden')) {
                 const historyLimit = displayLimits.history;
-                const sortedHistory = historyLogs.sort((a, b) => {
+                const sortedHistory = checkedOutMembers.sort((a, b) => {
                     // Sort by Date then by Time Out (descending)
                     if (b.date !== a.date) return b.date.localeCompare(a.date);
                     return (b.timeout || '').localeCompare(a.timeout || '');
                 });
 
                 let lastDate = null;
-                let historyHtml = historyLogs.length ? checkinHeader : `<div class="empty-state">${globalSearch ? 'No matching records found.' : 'No check-out records found.'}</div>`;
+                let historyHtml = checkedOutMembers.length ? checkinHeader : `<div class="empty-state">${globalSearch ? 'No matching records found.' : 'No check-out records found.'}</div>`;
 
                 sortedHistory.slice(0, historyLimit).forEach(m => {
                     if (m.date !== lastDate) {
@@ -3342,18 +3347,18 @@
                                 <div class="col-status"><span class="status-badge away">${m.status}</span></div>
                             </div>
                             <div class="col-actions">
-                                <button class="btn-action-sm details" onclick="showLogDetails('${m.id}')"><span class="material-symbols-outlined">info</span></button>
-                                <button class="btn-action-sm" onclick="resetAttendance(${state.members.findIndex(mem => mem.userid === m.userid)})" style="color:var(--danger)"><span class="material-symbols-outlined">restart_alt</span></button>
+                                <button class="btn-action-sm details" onclick="showMemberDetails(${m.index})"><span class="material-symbols-outlined">info</span></button>
+                                <button class="btn-action-sm" onclick="resetAttendance(${m.index})" style="color:var(--danger)"><span class="material-symbols-outlined">restart_alt</span></button>
                             </div>
                         </li>`;
                 });
                 historyList.innerHTML = historyHtml;
                 
-                if (historyLogs.length > historyLimit) {
+                if (checkedOutMembers.length > historyLimit) {
                     historyList.innerHTML += `
                         <div style="padding: 15px; text-align: center;">
                             <button onclick="loadMore('history')" style="width: 100%; background: var(--bg); color: var(--primary); border: 1px solid var(--border); padding: 10px; font-size: 0.85rem; font-weight: 600;">
-                                Load More (${historyLogs.length - historyLimit} remaining)
+                                Load More (${checkedOutMembers.length - historyLimit} remaining)
                             </button>
                         </div>`;
                 }
@@ -3374,8 +3379,8 @@
                     }));
 
                 const results = [
-                    ...checkedInLogs.map(m => ({ ...m, type: 'Present' })),
-                    ...historyLogs.map(m => ({ ...m, type: 'Timed Out' })),
+                    ...checkedInMembers.map(m => ({ ...m, type: 'Present' })),
+                    ...checkedOutMembers.map(m => ({ ...m, type: 'Timed Out' })),
                     ...filteredRegister.map(m => ({ ...m, type: 'User' })),
                     ...taskMatches
                 ];
@@ -3530,13 +3535,12 @@
 
             const getShiftData = (s) => {
                 const counterRoles = ['Direct Counter', 'Back up'];
-                const opISO = getOperationalISO(new Date());
-
+                
                 // Filter for Direct Counters/Back ups who clocked into this shift today
-                const shiftLogs = state.members.filter(l => 
-                    l.shift === s && 
-                    toLocalISO(l.date) === opISO && 
-                    counterRoles.includes(l.role)
+                const shiftMembers = state.members.filter(m => 
+                    m.shift === s && 
+                    toLocalISO(m.date) === operationalISO && 
+                    counterRoles.includes(m.role)
                 );
                 
                 let req = 0;
@@ -3552,9 +3556,9 @@
                 }
                 console.log(`Shift: ${s}, Operational Date: ${operationalISO}, Requirement: ${req}, Clocked In: ${shiftMembers.length}`);
 
-                const total = shiftLogs.length; // Cumulative count (all who clocked in)
+                const total = shiftMembers.length; // Cumulative count (all who clocked in)
                 // "Present" counts everyone currently on site (not 'Away')
-                const present = shiftLogs.filter(m => m.status !== 'Away').length; 
+                const present = shiftMembers.filter(m => m.status !== 'Away').length; 
                 return {
                     total,
                     present,
@@ -3627,19 +3631,20 @@
 
             // Update Cycle Count Dashboard Stats
             const counterRoles = ['Direct Counter', 'Back up'];
-            const opISO = getOperationalISO(new Date());
-            const operationalLogs = state.attendance_logs.filter(l => 
-                counterRoles.includes(l.role) && toLocalISO(l.date) === opISO
+            // For the dashboard summary, only consider counters clocked in for the current operational day
+            const operationalCounters = state.members.filter(m => 
+                counterRoles.includes(m.role) && 
+                toLocalISO(m.date) === operationalISO
             );
             
             const activeTasks = state.tasks.filter(t => !t.completed);
             const activeCounterIds = new Set(activeTasks.map(t => t.userid));
             
-            const totalActiveCounters = operationalLogs.filter(l => activeCounterIds.has(l.userid)).length;
-            const totalInactiveCounters = operationalLogs.filter(l => !activeCounterIds.has(l.userid) && l.status !== 'Away').length;
+            const totalActiveCounters = operationalCounters.filter(m => activeCounterIds.has(m.userid)).length;
+            const totalInactiveCounters = operationalCounters.filter(m => !activeCounterIds.has(m.userid) && m.status !== 'Away').length;
             
             const longCycleCount = activeTasks.filter(t => {
-                const m = operationalLogs.find(mem => mem.userid === t.userid);
+                const m = operationalCounters.find(mem => mem.userid === t.userid);
                 if (!m || !t.starttime) return false;
                 const diff = (now - new Date(t.starttime)) / 3600000; // hours
                 return diff > 1;
@@ -3774,8 +3779,8 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Use a slower interval (30s) as a fallback, since Realtime handles the heavy lifting
-            setInterval(() => fetchInitialData(), 30000);
+            // Add auto-refresh every 2 seconds to ensure sync across all devices
+            setInterval(() => fetchInitialData(), 2000);
         } else {
             render();
         }
