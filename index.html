@@ -1197,6 +1197,17 @@
                         </div>
                         <span class="material-symbols-outlined" style="color: var(--border);">chevron_right</span>
                     </div>
+
+                    <div class="card" onclick="switchFooterTab('excess-scan')" style="display: flex; align-items: center; gap: 15px; cursor: pointer; padding: 20px;">
+                        <div style="width: 48px; height: 48px; background: #fff7ed; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #f97316;">
+                            <span class="material-symbols-outlined" style="font-size: 28px;">barcode_scanner</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; font-size: 1rem;">Scan Excess</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light);">Log over-shipments and extra items.</div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: var(--border);">chevron_right</span>
+                    </div>
                 </div>
             </div>
 
@@ -1205,6 +1216,55 @@
                 <h2>Daily Operations Checklist</h2>
                 <div class="card" style="padding: 0;">
                     <div id="checklistList"></div>
+                </div>
+            </div>
+
+            <!-- Scan Excess Section -->
+            <div id="excessScanSection" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="border:none; margin:0; padding:0">Scan Excess Log</h2>
+                    <button onclick="exportExcessToExcel()" style="background: var(--success); font-size: 0.8rem;">
+                        <span class="material-symbols-outlined">file_download</span> Export
+                    </button>
+                </div>
+
+                <div class="card" style="margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div style="grid-column: 1 / -1;">
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Scanner Name</label>
+                            <select id="excessScannerInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Barcode</label>
+                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Quantity</label>
+                            <input type="number" id="excessQty" placeholder="0" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Box Number</label>
+                            <input type="text" id="excessBox" placeholder="e.g. 101" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Pallet Reference</label>
+                            <input type="text" id="excessPallet" placeholder="P-999" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                        </div>
+                    </div>
+                    <button onclick="addExcessScan()" style="width: 100%; padding: 12px;">
+                        <span class="material-symbols-outlined">add_circle</span> Add to Log
+                    </button>
+                </div>
+
+                <div class="card" style="padding: 0; overflow: hidden;">
+                    <div class="table-header">
+                        <div style="flex: 2;">Barcode</div>
+                        <div style="flex: 1; text-align: center;">Qty</div>
+                        <div style="flex: 1.2;">Box #</div>
+                        <div style="flex: 1.5;">Pallet Ref</div>
+                        <div style="width: 50px; text-align: right;">Action</div>
+                    </div>
+                    <ul id="excessScanList" style="padding-bottom: 0;"></ul>
                 </div>
             </div>
 
@@ -1593,6 +1653,7 @@
                 { id: 6, task: "Clean Productivity History (Optional)", completed: false, category: "Admin" }
             ],
             locations: [],
+            excessScans: [],
             tasks: [],
             schedules: [],
             ...uiSettings
@@ -1703,17 +1764,19 @@
             const scheduleSection = document.getElementById('scheduleSection');
             const checklistSection = document.getElementById('checklistSection');
             const moreSection = document.getElementById('moreSection');
+            const excessScanSection = document.getElementById('excessScanSection');
 
             if(homeView) homeView.classList.toggle('hidden', tab !== 'home');
             if(summarySection) summarySection.classList.toggle('hidden', tab !== 'summary');
             if(reportsSection) reportsSection.classList.toggle('hidden', tab !== 'reports');
             if(scheduleSection) scheduleSection.classList.toggle('hidden', tab !== 'schedule');
             if(checklistSection) checklistSection.classList.toggle('hidden', tab !== 'checklist');
+            if(excessScanSection) excessScanSection.classList.toggle('hidden', tab !== 'excess-scan');
             if(moreSection) moreSection.classList.toggle('hidden', tab !== 'more');
 
             // Update active state in footer
             document.querySelectorAll('.footer-nav-item').forEach(btn => {
-                const isMoreChild = tab === 'checklist' || tab === 'schedule';
+                const isMoreChild = tab === 'checklist' || tab === 'schedule' || tab === 'excess-scan';
                 const targetTab = isMoreChild ? 'more' : tab;
                 btn.classList.toggle('active', btn.dataset.tab === targetTab);
             });
@@ -1735,7 +1798,7 @@
             if (sideHome) sideHome.classList.toggle('hidden', tab !== 'home');
             if (sideSum) sideSum.classList.toggle('hidden', tab !== 'summary');
             if (sideRep) sideRep.classList.toggle('hidden', tab !== 'reports');
-            if (sideMore) sideMore.classList.toggle('hidden', tab !== 'more' && tab !== 'checklist' && tab !== 'schedule');
+            if (sideMore) sideMore.classList.toggle('hidden', tab !== 'more' && tab !== 'checklist' && tab !== 'schedule' && tab !== 'excess-scan');
 
             // Sync sidebar attendance views sub-menu visibility
             const sideAttSub = document.getElementById('side-attendanceSubMenu');
@@ -1760,7 +1823,8 @@
                 reports: 'Reports', 
                 checklist: 'Daily Checklist',
                 schedule: 'Schedule',
-                more: 'Other Operations'
+                more: 'Other Operations',
+                'excess-scan': 'Scan Excess Log'
             };
             const headerTitle = document.querySelector('header h1');
             if(headerTitle) headerTitle.innerText = titles[tab];
@@ -2040,6 +2104,41 @@
             render();
         }
 
+        function addExcessScan() {
+            const scannerId = document.getElementById('excessScannerInput').value;
+            const barcode = document.getElementById('excessBarcode').value;
+            const qty = document.getElementById('excessQty').value;
+            const box = document.getElementById('excessBox').value;
+            const pallet = document.getElementById('excessPallet').value;
+
+            if (!scannerId || !barcode || !qty) return showToast("Scanner, Barcode and Qty are required!", "error");
+
+            const scanner = state.members.find(m => m.userid === scannerId);
+            const newScan = {
+                id: Date.now(),
+                scannerName: scanner.name,
+                scannerId: scannerId,
+                barcode: barcode,
+                qty: qty,
+                box: box || '--',
+                pallet: pallet || '--',
+                timestamp: new Date().toISOString()
+            };
+
+            state.excessScans.push(newScan);
+            showToast("Excess entry logged!", "success");
+            
+            document.getElementById('excessBarcode').value = '';
+            document.getElementById('excessQty').value = '';
+            document.getElementById('excessBarcode').focus();
+            render();
+        }
+
+        function deleteExcessScan(id) {
+            state.excessScans = state.excessScans.filter(s => s.id !== id);
+            render();
+        }
+
         function exportMembersToExcel() {
             if (state.members.length === 0) return showToast("No members found!", "error");
             toggleLoader(true);
@@ -2053,6 +2152,25 @@
                     });
                     downloadFile(csvRows.join("\n"), `Member_Master_${new Date().toISOString().slice(0,10)}.csv`);
                     showToast("Member list exported!", "success");
+                } finally {
+                    toggleLoader(false);
+                }
+            }, 100);
+        }
+
+        function exportExcessToExcel() {
+            if (!state.excessScans || state.excessScans.length === 0) return showToast("No excess data found!", "error");
+            toggleLoader(true);
+            setTimeout(() => {
+                try {
+                    const headers = ["Timestamp", "Scanner Name", "Scanner ID", "Barcode", "Qty", "Box Number", "Pallet Ref"];
+                    const csvRows = [headers.join(",")];
+                    state.excessScans.forEach(s => {
+                        const row = [new Date(s.timestamp).toLocaleString(), s.scannerName, s.scannerId, s.barcode, s.qty, s.box, s.pallet];
+                        csvRows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
+                    });
+                    downloadFile(csvRows.join("\n"), `Excess_Log_${new Date().toISOString().slice(0,10)}.csv`);
+                    showToast("Excess log exported!", "success");
                 } finally {
                     toggleLoader(false);
                 }
@@ -3261,7 +3379,7 @@
 
             // If searching, hide main views to show results clearly
             if (isSearching) {
-                ['homeView', 'summarySection', 'reportsSection', 'scheduleSection', 'moreSection'].forEach(id => {
+                ['homeView', 'summarySection', 'reportsSection', 'scheduleSection', 'moreSection', 'excessScanSection'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.classList.add('hidden');
                 });
@@ -3286,6 +3404,31 @@
                         </label>
                     </div>
                 `).join('');
+            }
+
+            // Update Excess Scanner Dropdown
+            const excessScannerInput = document.getElementById('excessScannerInput');
+            if (excessScannerInput && state.members.length > 0) {
+                const currentVal = excessScannerInput.value;
+                excessScannerInput.innerHTML = '<option value="" disabled selected>Select Scanner...</option>' + 
+                    state.members.map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
+                if (currentVal) excessScannerInput.value = currentVal;
+            }
+
+            // Render Excess Scan List
+            const excessScanList = document.getElementById('excessScanList');
+            if (excessScanList) {
+                excessScanList.innerHTML = [...state.excessScans].reverse().map(s => `
+                    <li class="schedule-row" style="font-size: 0.75rem;">
+                        <div style="flex: 2; font-weight: 700;">${s.barcode}</div>
+                        <div style="flex: 1; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
+                        <div style="flex: 1.2;">${s.box}</div>
+                        <div style="flex: 1.5;">${s.pallet}</div>
+                        <div style="width: 50px; text-align: right;">
+                            <button class="btn-action-sm" onclick="deleteExcessScan(${s.id})" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
+                        </div>
+                    </li>
+                `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
             }
             
             // Update Footer More Badge
