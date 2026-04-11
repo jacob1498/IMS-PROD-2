@@ -32,6 +32,7 @@
             color: var(--text);
             margin: 0;
             padding: 20px;
+            padding-bottom: 100px; /* Ensure space for the footer on desktop */
         }
 
         .container {
@@ -157,7 +158,7 @@
 
         /* Footer Navigation (Mobile Only) */
         .footer-nav {
-            display: none;
+            display: flex;
             position: fixed;
             bottom: 0; left: 0; right: 0;
             background: var(--card);
@@ -169,6 +170,14 @@
             align-items: center;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
+        
+        @media (min-width: 769px) {
+            .footer-nav {
+                padding-left: 20%;
+                padding-right: 20%;
+            }
+        }
+
         .footer-nav-item {
             display: flex; flex-direction: column; align-items: center; gap: 2px;
             background: none; border: none; color: var(--text-light);
@@ -177,6 +186,26 @@
         }
         .footer-nav-item.active { color: var(--primary); }
         .footer-nav-item .material-symbols-outlined { font-size: 24px; }
+
+        /* Badge Styles */
+        .badge-container { position: relative; display: inline-flex; }
+        .badge {
+            position: absolute;
+            top: -5px;
+            right: -8px;
+            background: var(--danger);
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 900;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--card);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
         #attendanceList, #historyList, #registerList {
             padding-bottom: 80px;
@@ -480,7 +509,6 @@
             /* FAB & Footer Navigation Visibility */
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
-            .footer-nav { display: flex !important; }
 
             .table-header { display: none; }
             li { 
@@ -1458,7 +1486,10 @@
                 <span>Reports</span>
             </button>
             <button class="footer-nav-item" onclick="switchFooterTab('more')" data-tab="more">
-                <span class="material-symbols-outlined">more_horiz</span>
+                <div class="badge-container">
+                    <span class="material-symbols-outlined">more_horiz</span>
+                    <span id="moreBadge" class="badge hidden"></span>
+                </div>
                 <span>More</span>
             </button>
         </nav>
@@ -3255,6 +3286,14 @@
                         </label>
                     </div>
                 `).join('');
+            }
+            
+            // Update Footer More Badge
+            const unfinishedCount = state.checklist.filter(item => !item.completed).length;
+            const moreBadge = document.getElementById('moreBadge');
+            if (moreBadge) {
+                moreBadge.innerText = unfinishedCount;
+                moreBadge.classList.toggle('hidden', unfinishedCount === 0);
             }
             
             mainTabGroups.forEach(tg => tg.style.display = isSearching ? 'none' : '');
