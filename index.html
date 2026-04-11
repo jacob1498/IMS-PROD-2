@@ -160,15 +160,22 @@
         .footer-nav {
             display: flex;
             position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: var(--card);
+            bottom: 0; 
+            left: 0; 
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-top: 1px solid var(--border);
             padding: 8px 0;
-            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
             z-index: 1100;
             justify-content: space-around;
             align-items: center;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            transform: translate3d(0, 0, 0);
+            user-select: none;
+            backface-visibility: hidden;
         }
         
         @media (min-width: 769px) {
@@ -205,10 +212,6 @@
             justify-content: center;
             border: 2px solid var(--card);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        #attendanceList, #historyList, #registerList, #excessScanList, #scheduleList, #checklistList, #taskList, #locationList {
-            padding-bottom: calc(100px + env(safe-area-inset-bottom));
         }
 
         li {
@@ -498,7 +501,7 @@
             .tab-group button { font-size: 0.75rem !important; padding: 8px 4px; }
             #mobileMenuBtn { display: flex; }
             
-            header { margin: 0; padding: 15px 0; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1050; }
+            header { margin: 0; padding: 15px 0; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1050; width: 100%; box-sizing: border-box; }
             header h1 { font-size: 1.5rem; margin: 0; color: var(--text); }
             h2 { top: 60px; }
             
@@ -510,7 +513,7 @@
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
 
-            .table-header, #excessScanSection .table-header { display: none !important; }
+            .table-header:not(#excessScanSection .table-header):not(#scheduleSection .table-header) { display: none !important; }
             li { 
                 flex-direction: column; 
                 align-items: flex-start; 
@@ -586,6 +589,12 @@
             li.swiped .col-actions {
                 right: -120px; /* Moves with the translated LI */
             }
+
+            /* Excess Scan Mobile Tweaks - Small View */
+            #excessScanSection .table-header { display: flex !important; font-size: 0.45rem !important; padding: 4px 0 !important; margin-bottom: 0; background: #f8fafc; }
+            #excessScanSection .table-header > div { padding: 0 2px !important; }
+            #excessScanSection .schedule-row > div { font-size: 0.48rem !important; padding: 4px 2px !important; }
+            #excessScanSection .schedule-row { display: flex !important; flex-direction: row !important; grid-template-columns: none !important; grid-template-areas: none !important; margin-bottom: 0 !important; border-radius: 0 !important; border-left: 2px solid var(--border) !important; }
         }
 
         /* Global Search Overlay Styles */
@@ -659,13 +668,6 @@
         .toast.error { border-left-color: var(--danger); }
         @keyframes toastIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-20px); opacity: 0; } }
-
-        .dashboard-footer {
-            margin-top: 40px;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid var(--border);
-        }
 
         /* Loading Spinner */
         .loader-overlay {
@@ -1411,8 +1413,6 @@
                 <ul id="globalSearchResults"></ul>
             </div>
         </div>
-
-        <footer class="container dashboard-footer"></footer>
 
         <!-- Scan Action Selection Modal -->
         <div id="scanActionModal" class="modal-overlay hidden" onclick="closeScanActionModal()">
@@ -3559,7 +3559,7 @@
                 });
 
                 excessScanList.innerHTML = filteredExcess.slice(0, excessLimit).map(s => `
-                    <li class="schedule-row" style="font-size: 0.7rem;">
+                    <li class="schedule-row">
                         <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}<br><small>${new Date(s.timestamp).toLocaleDateString([], {month:'short', day:'numeric'})}</small></div>
                         <div style="flex: 1.2;">${s.scannerName}</div>
                         <div style="flex: 1.5; font-weight: 700;">${s.barcode}</div>
