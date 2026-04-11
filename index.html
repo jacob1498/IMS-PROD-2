@@ -512,6 +512,7 @@
             /* FAB & Footer Navigation Visibility */
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
+            #excessScanForm { display: none; }
 
             .table-header:not(#excessScanSection .table-header):not(#scheduleSection .table-header) { display: none !important; }
             li { 
@@ -1255,7 +1256,7 @@
                     </div>
                 </div>
 
-                <div class="card" style="margin-bottom: 20px;">
+                <div id="excessScanForm" class="card" style="margin-bottom: 20px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div style="grid-column: 1 / -1;">
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Scanner Name</label>
