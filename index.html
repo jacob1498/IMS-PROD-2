@@ -207,7 +207,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        #attendanceList, #historyList, #registerList {
+        #attendanceList, #historyList, #registerList, #excessScanList, #scheduleList, #checklistList, #taskList {
             padding-bottom: 80px;
         }
 
@@ -1289,7 +1289,7 @@
                         <div style="flex: 1;">Pallet</div>
                         <div style="width: 70px; text-align: right;">Action</div>
                     </div>
-                    <ul id="excessScanList" style="padding-bottom: 0;"></ul>
+                    <ul id="excessScanList"></ul>
                 </div>
             </div>
 
@@ -1388,7 +1388,7 @@
                             <div style="flex: 0.8 1 0%; text-align: right; padding-right: 5px;">Req. HC</div>
                             <div style="flex: 0.6 1 0%; text-align: right;">Actions</div>
                         </div>
-                        <ul id="scheduleList" style="padding-bottom: 0;"></ul>
+                        <ul id="scheduleList"></ul>
                     </div>
                     <div id="scheduleVisualWrapper" class="hidden sched-visual-grid" style="padding: 15px;"></div>
                     <div id="scheduleStorageWrapper" class="hidden">
@@ -1983,62 +1983,70 @@
             } 
         }
 
+        let renderTimeout;
+        function debouncedRender() {
+            if (renderTimeout) clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                render();
+            }, 100); // 100ms debounce to prevent UI stutter
+        }
+
         function initRealtime() {
             if (!supabaseClient) return;
 
             supabaseClient.channel('db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, payload => {
                     if (payload.eventType === 'DELETE') {
-                        state.members = state.members.filter(m => m.userid !== payload.old.userid);
+                        state.members = state.members.filter(m => String(m.userid) !== String(payload.old.userid));
                     } else {
-                        const idx = state.members.findIndex(m => m.userid === payload.new.userid);
+                        const idx = state.members.findIndex(m => String(m.userid) === String(payload.new.userid));
                         if (idx > -1) state.members[idx] = payload.new;
                         else state.members.push(payload.new);
                     }
-                    render();
+                    debouncedRender();
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => {
                     if (payload.eventType === 'DELETE') {
                         state.tasks = state.tasks.filter(t => t.id !== payload.old.id);
                     } else {
-                        const idx = state.tasks.findIndex(t => t.id === payload.new.id);
+                        const idx = state.tasks.findIndex(t => String(t.id) === String(payload.new.id));
                         if (idx > -1) state.tasks[idx] = payload.new;
                         else state.tasks.push(payload.new);
                     }
-                    render();
+                    debouncedRender();
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, payload => {
                     if (payload.eventType === 'DELETE') {
                         state.schedules = state.schedules.filter(s => s.id !== payload.old.id);
                     } else {
-                        const idx = state.schedules.findIndex(s => s.id === payload.new.id);
+                        const idx = state.schedules.findIndex(s => String(s.id) === String(payload.new.id));
                         if (idx > -1) state.schedules[idx] = payload.new;
                         else state.schedules.push(payload.new);
                     }
-                    render();
+                    debouncedRender();
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' }, payload => {
                     if (payload.eventType === 'DELETE') {
                         state.locations = state.locations.filter(l => l.id !== payload.old.id);
                     } else {
-                        const idx = state.locations.findIndex(l => l.id === payload.new.id);
+                        const idx = state.locations.findIndex(l => String(l.id) === String(payload.new.id));
                         if (idx > -1) state.locations[idx] = payload.new;
                         else state.locations.push(payload.new);
                     }
-                    render();
+                    debouncedRender();
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'excess_scans' }, payload => {
                     if (payload.eventType === 'DELETE') {
                         state.excessScans = state.excessScans.filter(s => s.id !== payload.old.id);
                     } else {
-                        const idx = state.excessScans.findIndex(s => s.id === payload.new.id);
+                        const idx = state.excessScans.findIndex(s => String(s.id) === String(payload.new.id));
                         if (idx > -1) state.excessScans[idx] = payload.new;
                         else {
                             state.excessScans.unshift(payload.new);
                             if (state.excessScans.length > 200) state.excessScans.pop();
                         }
                     }
-                    render();
+                    debouncedRender();
                 })
                 .subscribe();
         }
