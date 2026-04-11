@@ -4175,7 +4175,8 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Auto-refresh is removed because initRealtime handles updates efficiently
+            // Auto-refresh every 2 seconds to ensure cross-device synchronization
+            setInterval(() => fetchInitialData(false), 2000);
         } else {
             render();
         }
