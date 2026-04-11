@@ -173,7 +173,7 @@
             display: flex; flex-direction: column; align-items: center; gap: 2px;
             background: none; border: none; color: var(--text-light);
             padding: 4px; font-size: 0.65rem; font-weight: 700; cursor: pointer;
-            width: 16.6%; transition: color 0.2s;
+            width: 20%; transition: color 0.2s;
         }
         .footer-nav-item.active { color: var(--primary); }
         .footer-nav-item .material-symbols-outlined { font-size: 24px; }
@@ -834,17 +834,16 @@
                     </button>
                 </div>
                 
-                <div id="side-checklistMenu" class="sidebar-nav-group">
-                    <small>Daily Operations</small>
-                    <button id="side-checklistTabBtn" onclick="switchFooterTab('checklist'); toggleSidebar();">
+                <div id="side-moreMenu" class="sidebar-nav-group hidden">
+                    <small>Management & Ops</small>
+                    <button id="side-moreTabBtn" onclick="switchFooterTab('more'); toggleSidebar();">
+                        <span class="material-symbols-outlined">more_horiz</span> Other Menu
+                    </button>
+                    <button id="side-checklistTabBtn" onclick="switchFooterTab('checklist'); toggleSidebar();" style="font-size: 0.85rem; opacity: 0.9;">
                         <span class="material-symbols-outlined">checklist</span> Daily Checklist
                     </button>
-                </div>
-
-                <div id="side-scheduleMenu" class="sidebar-nav-group hidden">
-                    <small>Schedule Management</small>
-                    <button onclick="toggleSidebar()">
-                        <span class="material-symbols-outlined">event</span> View Roster
+                    <button id="side-scheduleTabBtn" onclick="switchFooterTab('schedule'); toggleSidebar();" style="font-size: 0.85rem; opacity: 0.9;">
+                        <span class="material-symbols-outlined">calendar_month</span> Team Schedule
                     </button>
                 </div>
             </div>
@@ -1145,6 +1144,34 @@
                 </div>
             </div>
 
+            <!-- Other Menu Section -->
+            <div id="moreSection" class="hidden">
+                <h2>Other Operations</h2>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="card" onclick="switchFooterTab('checklist')" style="display: flex; align-items: center; gap: 15px; cursor: pointer; padding: 20px;">
+                        <div style="width: 48px; height: 48px; background: #eef2ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                            <span class="material-symbols-outlined" style="font-size: 28px;">checklist</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; font-size: 1rem;">Daily Checklist</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light);">Operational checks & verification.</div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: var(--border);">chevron_right</span>
+                    </div>
+                    
+                    <div class="card" onclick="switchFooterTab('schedule')" style="display: flex; align-items: center; gap: 15px; cursor: pointer; padding: 20px;">
+                        <div style="width: 48px; height: 48px; background: #f0fdf4; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--success);">
+                            <span class="material-symbols-outlined" style="font-size: 28px;">calendar_month</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; font-size: 1rem;">Team Schedule</div>
+                            <div style="font-size: 0.8rem; color: var(--text-light);">View rosters and manpower planning.</div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: var(--border);">chevron_right</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Checklist Section -->
             <div id="checklistSection" class="hidden">
                 <h2>Daily Operations Checklist</h2>
@@ -1426,17 +1453,13 @@
                 <span class="material-symbols-outlined">search</span>
                 <span>Search</span>
             </button>
-            <button class="footer-nav-item" onclick="switchFooterTab('checklist')" data-tab="checklist">
-                <span class="material-symbols-outlined">checklist</span>
-                <span>Checklist</span>
-            </button>
             <button class="footer-nav-item" onclick="switchFooterTab('reports')" data-tab="reports">
                 <span class="material-symbols-outlined">analytics</span>
                 <span>Reports</span>
             </button>
-            <button class="footer-nav-item" onclick="switchFooterTab('schedule')" data-tab="schedule">
-                <span class="material-symbols-outlined">calendar_month</span>
-                <span>Schedule</span>
+            <button class="footer-nav-item" onclick="switchFooterTab('more')" data-tab="more">
+                <span class="material-symbols-outlined">more_horiz</span>
+                <span>More</span>
             </button>
         </nav>
 
@@ -1648,36 +1671,40 @@
             const reportsSection = document.getElementById('reportsSection');
             const scheduleSection = document.getElementById('scheduleSection');
             const checklistSection = document.getElementById('checklistSection');
+            const moreSection = document.getElementById('moreSection');
 
             if(homeView) homeView.classList.toggle('hidden', tab !== 'home');
             if(summarySection) summarySection.classList.toggle('hidden', tab !== 'summary');
             if(reportsSection) reportsSection.classList.toggle('hidden', tab !== 'reports');
             if(scheduleSection) scheduleSection.classList.toggle('hidden', tab !== 'schedule');
             if(checklistSection) checklistSection.classList.toggle('hidden', tab !== 'checklist');
+            if(moreSection) moreSection.classList.toggle('hidden', tab !== 'more');
 
             // Update active state in footer
             document.querySelectorAll('.footer-nav-item').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === tab);
+                const isMoreChild = tab === 'checklist' || tab === 'schedule';
+                const targetTab = isMoreChild ? 'more' : tab;
+                btn.classList.toggle('active', btn.dataset.tab === targetTab);
             });
 
             // Update sidebar active state
-            const sideCheckBtn = document.getElementById('side-checklistTabBtn');
-            if (sideCheckBtn) {
-                sideCheckBtn.classList.toggle('active', tab === 'checklist');
-            }
+            if (document.getElementById('side-checklistTabBtn')) 
+                document.getElementById('side-checklistTabBtn').classList.toggle('active', tab === 'checklist');
+            if (document.getElementById('side-scheduleTabBtn')) 
+                document.getElementById('side-scheduleTabBtn').classList.toggle('active', tab === 'schedule');
+            if (document.getElementById('side-moreTabBtn')) 
+                document.getElementById('side-moreTabBtn').classList.toggle('active', tab === 'more');
 
             // Sync sidebar sub-menu visibility for all tabs
             const sideHome = document.getElementById('side-homeSubMenu');
             const sideSum = document.getElementById('side-summaryMenu');
             const sideRep = document.getElementById('side-reportsMenu');
-            const sideSch = document.getElementById('side-scheduleMenu');
-            const sideChk = document.getElementById('side-checklistMenu');
+            const sideMore = document.getElementById('side-moreMenu');
 
             if (sideHome) sideHome.classList.toggle('hidden', tab !== 'home');
             if (sideSum) sideSum.classList.toggle('hidden', tab !== 'summary');
             if (sideRep) sideRep.classList.toggle('hidden', tab !== 'reports');
-            if (sideSch) sideSch.classList.toggle('hidden', tab !== 'schedule');
-            if (sideChk) sideChk.classList.toggle('hidden', tab !== 'checklist');
+            if (sideMore) sideMore.classList.toggle('hidden', tab !== 'more' && tab !== 'checklist' && tab !== 'schedule');
 
             // Sync sidebar attendance views sub-menu visibility
             const sideAttSub = document.getElementById('side-attendanceSubMenu');
@@ -1701,7 +1728,8 @@
                 summary: 'Dashboard', 
                 reports: 'Reports', 
                 checklist: 'Daily Checklist',
-                schedule: 'Schedule' 
+                schedule: 'Schedule',
+                more: 'Other Operations'
             };
             const headerTitle = document.querySelector('header h1');
             if(headerTitle) headerTitle.innerText = titles[tab];
@@ -3202,7 +3230,7 @@
 
             // If searching, hide main views to show results clearly
             if (isSearching) {
-                ['homeView', 'summarySection', 'reportsSection', 'scheduleSection'].forEach(id => {
+                ['homeView', 'summarySection', 'reportsSection', 'scheduleSection', 'moreSection'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.classList.add('hidden');
                 });
