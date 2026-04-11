@@ -1241,6 +1241,22 @@
             <!-- Checklist Section -->
             <div id="checklistSection" class="hidden">
                 <h2>Daily Operations Checklist</h2>
+                <div class="card" style="margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px;">
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Checklist Shift</label>
+                        <select id="checklistShift" onchange="render()" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white; font-weight: 600;">
+                            <option value="1st">1st Shift</option>
+                            <option value="2nd">2nd Shift</option>
+                            <option value="3rd">3rd Shift</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Team Leader Authorization</label>
+                        <select id="checklistTL" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;">
+                            <option value="" disabled selected>Select Team Leader...</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="card" style="padding: 0;">
                     <div id="checklistList"></div>
                 </div>
@@ -1713,6 +1729,7 @@
             editingExcessId: null,
             tasks: [],
             schedules: [],
+            checklistCompletions: [],
             ...uiSettings
         };
 
@@ -1998,6 +2015,8 @@
                 const { data: schedules } = await supabaseClient.from('schedules').select('*').order('date', { ascending: false }).limit(100);
                 const { data: locations } = await supabaseClient.from('locations').select('*');
                 
+                const { data: checklistLogs } = await supabaseClient.from('checklist_logs').select('*').order('date', { ascending: false }).limit(100);
+                state.checklistCompletions = checklistLogs || [];
                 const { data: excess } = await supabaseClient.from('excess_scans').select('*').order('timestamp', { ascending: false }).limit(200);
                 
                 state.members = members || [];
@@ -2069,6 +2088,16 @@
                         const idx = state.locations.findIndex(l => String(l.id) === String(payload.new.id));
                         if (idx > -1) state.locations[idx] = { ...state.locations[idx], ...payload.new };
                         else state.locations.push(payload.new);
+                    }
+                    debouncedRender();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist_logs' }, payload => {
+                    if (payload.eventType === 'DELETE') {
+                        state.checklistCompletions = state.checklistCompletions.filter(c => c.id !== payload.old.id);
+                    } else {
+                        const idx = state.checklistCompletions.findIndex(c => c.id === payload.new.id);
+                        if (idx > -1) state.checklistCompletions[idx] = { ...state.checklistCompletions[idx], ...payload.new };
+                        else state.checklistCompletions.push(payload.new);
                     }
                     debouncedRender();
                 })
@@ -3556,11 +3585,23 @@
             if (historyUI) historyUI.style.display = isSearching ? 'none' : 'flex';
             if (historyH2) historyH2.style.display = isSearching ? 'none' : 'block';
             if (registerUI) registerUI.style.display = isSearching ? 'none' : 'flex';
+
+            // Update Checklist Team Leader Dropdown
+            const tlSelect = document.getElementById('checklistTL');
+            if (tlSelect) {
+                const currentTL = tlSelect.value;
+                tlSelect.innerHTML = '<option value="" disabled selected>Select Team Leader...</option>' + 
+                    state.members.filter(m => m.role === 'Team leader').map(m => `<option value="${m.userid}">${m.name}</option>`).join('');
+                if (currentTL) tlSelect.value = currentTL;
+            }
+
             const checklistList = document.getElementById('checklistList');
             if (checklistList) {
+                const shift = document.getElementById('checklistShift')?.value || '1st';
+                const opDate = getOperationalISO(new Date());
                 checklistList.innerHTML = state.checklist.map(item => `
-                    <div class="checklist-item ${item.completed ? 'completed' : ''}">
-                        <input type="checkbox" id="chk-${item.id}" ${item.completed ? 'checked' : ''} onchange="toggleChecklistItem(${item.id})">
+                    <div class="checklist-item ${state.checklistCompletions.some(c => c.taskId === item.id && c.shift === shift && toLocalISO(c.date) === opDate) ? 'completed' : ''}">
+                        <input type="checkbox" id="chk-${item.id}" ${state.checklistCompletions.some(c => c.taskId === item.id && c.shift === shift && toLocalISO(c.date) === opDate) ? 'checked' : ''} onchange="toggleChecklistItem(${item.id})">
                         <label for="chk-${item.id}">
                             <span style="font-size: 0.65rem; color: var(--primary); font-weight: 800; display: block; text-transform: uppercase;">${item.category}</span>
                             ${item.task}
