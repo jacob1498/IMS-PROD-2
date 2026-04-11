@@ -1224,6 +1224,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="border:none; margin:0; padding:0">Scan Excess Log</h2>
                     <div style="display: flex; gap: 8px;">
+                        <input type="text" id="excessBoxSearch" placeholder="Search Box #" oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 100px;">
                         <input type="date" id="excessFilterDate" onchange="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px;">
                         <button onclick="exportExcessToExcel()" style="background: var(--success); font-size: 0.8rem;">
                             <span class="material-symbols-outlined">file_download</span> Smart Export
@@ -1962,8 +1963,8 @@
             
             try {
                 const { data: members } = await supabaseClient.from('members').select('*');
-                const { data: tasks } = await supabaseClient.from('tasks').select('*');
-                const { data: schedules } = await supabaseClient.from('schedules').select('*');
+                const { data: tasks } = await supabaseClient.from('tasks').select('*').order('starttime', { ascending: false }).limit(500);
+                const { data: schedules } = await supabaseClient.from('schedules').select('*').order('date', { ascending: false }).limit(100);
                 const { data: locations } = await supabaseClient.from('locations').select('*');
                 
                 const { data: excess } = await supabaseClient.from('excess_scans').select('*').order('timestamp', { ascending: false }).limit(200);
@@ -2253,11 +2254,13 @@
             const scannerId = document.getElementById('excessScannerInput').value;
             const palletFilter = document.getElementById('excessPallet').value;
             const dateFilter = document.getElementById('excessFilterDate').value;
+            const boxFilter = document.getElementById('excessBoxSearch').value.toLowerCase();
             
             let filteredData = [...state.excessScans];
             
             if (scannerId) filteredData = filteredData.filter(s => s.scannerId === scannerId);
             if (palletFilter) filteredData = filteredData.filter(s => s.pallet.toLowerCase().includes(palletFilter.toLowerCase()));
+            if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
             if (dateFilter) {
                 const filterISO = toLocalISO(dateFilter);
                 filteredData = filteredData.filter(s => toLocalISO(s.timestamp) === filterISO);
@@ -3530,7 +3533,17 @@
             const excessLimit = displayLimits.excess;
 
             if (excessScanList) {
-                excessScanList.innerHTML = [...state.excessScans].slice(0, excessLimit).map(s => `
+                const boxSearch = document.getElementById('excessBoxSearch').value.toLowerCase();
+                const dateFilter = document.getElementById('excessFilterDate').value;
+                const filterISO = dateFilter ? toLocalISO(dateFilter) : null;
+                
+                const filteredExcess = state.excessScans.filter(s => {
+                    const matchesBox = !boxSearch || (s.box && s.box.toString().toLowerCase().includes(boxSearch));
+                    const matchesDate = !filterISO || (toLocalISO(s.timestamp) === filterISO);
+                    return matchesBox && matchesDate;
+                });
+
+                excessScanList.innerHTML = filteredExcess.slice(0, excessLimit).map(s => `
                     <li class="schedule-row" style="font-size: 0.7rem;">
                         <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}<br><small>${new Date(s.timestamp).toLocaleDateString([], {month:'short', day:'numeric'})}</small></div>
                         <div style="flex: 1.2;">${s.scannerName}</div>
@@ -3545,20 +3558,19 @@
                     </li>
                 `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
 
-                if (state.excessScans.length > excessLimit) {
+                if (filteredExcess.length > excessLimit) {
                     excessScanList.innerHTML += `
                         <div style="padding: 15px; text-align: center;">
                             <button onclick="loadMore('excess')" style="width: 100%; background: var(--bg); color: var(--primary); padding: 10px;">Load More History</button>
                         </div>`;
                 }
-            }
 
-            // Render Excess Summary Dashboard
-            if (document.getElementById('excessSummaryTotal')) {
-                document.getElementById('excessSummaryTotal').innerText = state.excessScans.length;
-                document.getElementById('excessSummaryUsers').innerText = new Set(state.excessScans.map(s => s.scannerId)).size;
-                const lastScan = state.excessScans[0];
-                document.getElementById('excessSummaryLast').innerText = lastScan ? new Date(lastScan.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--';
+                if (document.getElementById('excessSummaryTotal')) {
+                    document.getElementById('excessSummaryTotal').innerText = filteredExcess.length;
+                    document.getElementById('excessSummaryUsers').innerText = new Set(filteredExcess.map(s => s.scannerId)).size;
+                    const lastScan = filteredExcess[0];
+                    document.getElementById('excessSummaryLast').innerText = lastScan ? new Date(lastScan.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--';
+                }
             }
             
             // Update Footer More Badge
@@ -4119,8 +4131,7 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Add auto-refresh every 2 seconds to ensure sync across all devices
-            setInterval(() => fetchInitialData(), 2000);
+            // Auto-refresh is removed because initRealtime handles updates efficiently
         } else {
             render();
         }
