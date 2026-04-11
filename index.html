@@ -1221,11 +1221,33 @@
 
             <!-- Scan Excess Section -->
             <div id="excessScanSection" class="hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="border:none; margin:0; padding:0">Scan Excess Log</h2>
-                    <button onclick="exportExcessToExcel()" style="background: var(--success); font-size: 0.8rem;">
-                        <span class="material-symbols-outlined">file_download</span> Export
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="date" id="excessFilterDate" onchange="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px;">
+                        <button onclick="exportExcessToExcel()" style="background: var(--success); font-size: 0.8rem;">
+                            <span class="material-symbols-outlined">file_download</span> Smart Export
+                        </button>
+                        <button onclick="state.excessScans = []; fetchInitialData(true);" style="background: var(--text-light); font-size: 0.8rem;">
+                            <span class="material-symbols-outlined">refresh</span> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Summary Dashboard -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid var(--primary);">
+                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Total Scans</small>
+                        <div id="excessSummaryTotal" style="font-size: 1.2rem; font-weight: 800;">0</div>
+                    </div>
+                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid var(--success);">
+                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Unique Scanners</small>
+                        <div id="excessSummaryUsers" style="font-size: 1.2rem; font-weight: 800;">0</div>
+                    </div>
+                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid #f97316;">
+                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Last Scan</small>
+                        <div id="excessSummaryLast" style="font-size: 0.75rem; font-weight: 700; margin-top: 4px;">--:--</div>
+                    </div>
                 </div>
 
                 <div class="card" style="margin-bottom: 20px;">
@@ -1665,7 +1687,7 @@
         let activeProductivitySubTab = state.activeProductivitySubTab || 'active';
         let activeSummarySubTab = state.activeSummarySubTab || 'shift';
         // Runtime display limits for pagination/load more
-        let displayLimits = { checkin: 10, history: 10, register: 10, prodHistory: 10 };
+        let displayLimits = { checkin: 10, history: 10, register: 10, prodHistory: 10, excess: 10 };
         let notifiedAlerts = new Set();
 
         function highlightMatch(text, query) {
@@ -1944,17 +1966,18 @@
                 const { data: schedules } = await supabaseClient.from('schedules').select('*');
                 const { data: locations } = await supabaseClient.from('locations').select('*');
                 
+                const { data: excess } = await supabaseClient.from('excess_scans').select('*').order('timestamp', { ascending: false }).limit(200);
+                
                 state.members = members || [];
                 state.tasks = tasks || [];
                 state.schedules = schedules || [];
                 state.locations = locations || [];
+                state.excessScans = excess || [];
                 render();
             } catch (err) {
                 console.error("Fetch error:", err);
                 if (showLoader) showToast("Failed to refresh data", "error");
-            } finally {
-                if (showLoader) toggleLoader(false);
-            }
+            } 
         }
 
         function initRealtime() {
@@ -1998,6 +2021,16 @@
                         const idx = state.locations.findIndex(l => l.id === payload.new.id);
                         if (idx > -1) state.locations[idx] = payload.new;
                         else state.locations.push(payload.new);
+                    }
+                    render();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'excess_scans' }, payload => {
+                    if (payload.eventType === 'DELETE') {
+                        state.excessScans = state.excessScans.filter(s => s.id !== payload.old.id);
+                    } else {
+                        const idx = state.excessScans.findIndex(s => s.id === payload.new.id);
+                        if (idx > -1) state.excessScans[idx] = payload.new;
+                        else state.excessScans.unshift(payload.new);
                     }
                     render();
                 })
@@ -2107,50 +2140,45 @@
             render();
         }
 
-        function addExcessScan() {
+        async function addExcessScan() {
             const scannerId = document.getElementById('excessScannerInput').value;
             const barcode = document.getElementById('excessBarcode').value;
             const qty = document.getElementById('excessQty').value;
             const box = document.getElementById('excessBox').value;
             const pallet = document.getElementById('excessPallet').value;
 
-            if (!scannerId || !barcode || !qty) {
-                if(barcode || qty) showToast("Scanner, Barcode and Qty are required!", "error");
+            if (!scannerId || !barcode || !qty || isNaN(parseInt(qty)) || parseInt(qty) <= 0) {
+                if (!scannerId) showToast("Please select a Scanner Name", "error");
+                else if (!barcode) showToast("Barcode is required", "error");
+                else if (!qty || isNaN(parseInt(qty)) || parseInt(qty) <= 0) showToast("Valid Quantity is required", "error");
                 return;
             }
 
             const scanner = state.members.find(m => m.userid === scannerId);
+            toggleLoader(true);
             
+            const payload = {
+                scannerName: scanner.name,
+                scannerId: scannerId,
+                barcode: barcode,
+                qty: parseInt(qty),
+                box: box || '--',
+                pallet: pallet || '--',
+                timestamp: new Date().toISOString()
+            };
+
+            let result;
             if (state.editingExcessId) {
-                const idx = state.excessScans.findIndex(s => s.id === state.editingExcessId);
-                if (idx !== -1) {
-                    state.excessScans[idx] = {
-                        ...state.excessScans[idx],
-                        scannerName: scanner.name,
-                        scannerId: scannerId,
-                        barcode: barcode,
-                        qty: qty,
-                        box: box || '--',
-                        pallet: pallet || '--'
-                    };
-                    showToast("Entry updated!", "success");
-                }
-                state.editingExcessId = null;
+                result = await supabaseClient.from('excess_scans').update(payload).eq('id', state.editingExcessId);
             } else {
-                const newScan = {
-                    id: Date.now(),
-                    scannerName: scanner.name,
-                    scannerId: scannerId,
-                    barcode: barcode,
-                    qty: qty,
-                    box: box || '--',
-                    pallet: pallet || '--',
-                    timestamp: new Date().toISOString()
-                };
-                state.excessScans.push(newScan);
-                showToast("Excess entry logged!", "success");
+                result = await supabaseClient.from('excess_scans').insert([payload]);
             }
-            
+
+            toggleLoader(false);
+            if (result.error) return showToast(result.error.message, "error");
+            state.editingExcessId = null;
+
+            showToast("Excess entry saved!", "success");
             document.getElementById('excessBarcode').value = '';
             document.getElementById('excessQty').value = '';
             document.getElementById('excessBox').value = '';
@@ -2166,10 +2194,12 @@
             const y = String(now.getFullYear()).slice(-2);
             const prefix = `Ex-${d}${m}${y}-`;
             
-            const todayScans = state.excessScans.filter(s => s.box && s.box.startsWith(prefix));
+    
+            const todayScans = state.excessScans.filter(s => s.box && s.box.toString().startsWith(prefix));
             let nextSeq = 1;
             if (todayScans.length > 0) {
-                const sequences = todayScans.map(s => parseInt(s.box.split('-')[2]) || 0).filter(n => !isNaN(n));
+                
+                const sequences = todayScans.map(s => parseInt(s.box.toString().split('-')[2]) || 0).filter(n => !isNaN(n));
                 if (sequences.length > 0) nextSeq = Math.max(...sequences) + 1;
             }
             
@@ -2191,9 +2221,13 @@
             showToast("Editing entry...", "info");
         }
 
-        function deleteExcessScan(id) {
-            state.excessScans = state.excessScans.filter(s => s.id !== id);
-            render();
+        async function deleteExcessScan(id) {
+            if (!confirm("Delete this log entry?")) return;
+            toggleLoader(true);
+            const { error } = await supabaseClient.from('excess_scans').delete().eq('id', id);
+            toggleLoader(false);
+            if (error) showToast(error.message, "error");
+            else showToast("Entry deleted", "info");
         }
 
         function exportMembersToExcel() {
@@ -2215,19 +2249,36 @@
             }, 100);
         }
 
-        function exportExcessToExcel() {
-            if (!state.excessScans || state.excessScans.length === 0) return showToast("No excess data found!", "error");
+        async function exportExcessToExcel() {
+            const scannerId = document.getElementById('excessScannerInput').value;
+            const palletFilter = document.getElementById('excessPallet').value;
+            const dateFilter = document.getElementById('excessFilterDate').value;
+            
+            let filteredData = [...state.excessScans];
+            
+            if (scannerId) filteredData = filteredData.filter(s => s.scannerId === scannerId);
+            if (palletFilter) filteredData = filteredData.filter(s => s.pallet.toLowerCase().includes(palletFilter.toLowerCase()));
+            if (dateFilter) {
+                const filterISO = toLocalISO(dateFilter);
+                filteredData = filteredData.filter(s => toLocalISO(s.timestamp) === filterISO);
+            }
+
+            if (filteredData.length === 0) return showToast("No records found matching these filters!", "error");
+
             toggleLoader(true);
             setTimeout(() => {
                 try {
                     const headers = ["Timestamp", "Scanner Name", "Scanner ID", "Barcode", "Qty", "Box Number", "Pallet Ref"];
                     const csvRows = [headers.join(",")];
-                    state.excessScans.forEach(s => {
-                        const row = [new Date(s.timestamp).toLocaleString(), s.scannerName, s.scannerId, s.barcode, s.qty, s.box, s.pallet];
+                    filteredData.forEach(s => {
+                        const row = [
+                            new Date(s.timestamp).toLocaleString(), 
+                            s.scannerName, s.scannerId, s.barcode, s.qty, s.box, s.pallet
+                        ];
                         csvRows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
                     });
-                    downloadFile(csvRows.join("\n"), `Excess_Log_${new Date().toISOString().slice(0,10)}.csv`);
-                    showToast("Excess log exported!", "success");
+                    downloadFile(csvRows.join("\n"), `Excess_Smart_Export_${new Date().toISOString().slice(0,10)}.csv`);
+                    showToast(`Exported ${filteredData.length} records successfully.`, "success");
                 } finally {
                     toggleLoader(false);
                 }
@@ -3476,10 +3527,12 @@
 
             // Render Excess Scan List
             const excessScanList = document.getElementById('excessScanList');
+            const excessLimit = displayLimits.excess;
+
             if (excessScanList) {
-                excessScanList.innerHTML = [...state.excessScans].reverse().map(s => `
+                excessScanList.innerHTML = [...state.excessScans].slice(0, excessLimit).map(s => `
                     <li class="schedule-row" style="font-size: 0.7rem;">
-                        <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'numeric', day:'numeric'})}</div>
+                        <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}<br><small>${new Date(s.timestamp).toLocaleDateString([], {month:'short', day:'numeric'})}</small></div>
                         <div style="flex: 1.2;">${s.scannerName}</div>
                         <div style="flex: 1.5; font-weight: 700;">${s.barcode}</div>
                         <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
@@ -3491,6 +3544,21 @@
                         </div>
                     </li>
                 `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
+
+                if (state.excessScans.length > excessLimit) {
+                    excessScanList.innerHTML += `
+                        <div style="padding: 15px; text-align: center;">
+                            <button onclick="loadMore('excess')" style="width: 100%; background: var(--bg); color: var(--primary); padding: 10px;">Load More History</button>
+                        </div>`;
+                }
+            }
+
+            // Render Excess Summary Dashboard
+            if (document.getElementById('excessSummaryTotal')) {
+                document.getElementById('excessSummaryTotal').innerText = state.excessScans.length;
+                document.getElementById('excessSummaryUsers').innerText = new Set(state.excessScans.map(s => s.scannerId)).size;
+                const lastScan = state.excessScans[0];
+                document.getElementById('excessSummaryLast').innerText = lastScan ? new Date(lastScan.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--';
             }
             
             // Update Footer More Badge
