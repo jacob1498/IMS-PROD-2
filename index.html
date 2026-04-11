@@ -525,11 +525,13 @@
             #checkinSubSection .scan-area { display: none; }
             
             /* Fixed & Stable Scan Excess Form on Mobile */
+            /* Hide Scan Excess Form on Mobile for Footer Stability */
             #excessScanForm { 
                 display: block !important; 
                 margin-bottom: 20px; 
                 padding: 16px !important; 
                 border-top: 4px solid var(--primary); 
+                display: none !important; 
             }
             #excessScanForm > div { grid-template-columns: 1fr !important; gap: 10px !important; }
             #excessScanForm input, #excessScanForm select { font-size: 16px !important; }
@@ -2020,10 +2022,16 @@
             supabaseClient.channel('db-changes')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, payload => {
                     if (payload.eventType === 'DELETE') {
-                        state.members = state.members.filter(m => String(m.userid) !== String(payload.old.userid));
+                        state.members = state.members.filter(m => 
+                            (payload.old.id && m.id === payload.old.id) || 
+                            (payload.old.userid && String(m.userid) === String(payload.old.userid))
+                        );
                     } else {
-                        const idx = state.members.findIndex(m => String(m.userid) === String(payload.new.userid));
-                        if (idx > -1) state.members[idx] = payload.new;
+                        const idx = state.members.findIndex(m => 
+                            (payload.new.id && m.id === payload.new.id) || 
+                            (payload.new.userid && String(m.userid) === String(payload.new.userid))
+                        );
+                        if (idx > -1) state.members[idx] = { ...state.members[idx], ...payload.new };
                         else state.members.push(payload.new);
                     }
                     debouncedRender();
@@ -2033,7 +2041,7 @@
                         state.tasks = state.tasks.filter(t => t.id !== payload.old.id);
                     } else {
                         const idx = state.tasks.findIndex(t => String(t.id) === String(payload.new.id));
-                        if (idx > -1) state.tasks[idx] = payload.new;
+                        if (idx > -1) state.tasks[idx] = { ...state.tasks[idx], ...payload.new };
                         else state.tasks.push(payload.new);
                     }
                     debouncedRender();
@@ -2043,7 +2051,7 @@
                         state.schedules = state.schedules.filter(s => s.id !== payload.old.id);
                     } else {
                         const idx = state.schedules.findIndex(s => String(s.id) === String(payload.new.id));
-                        if (idx > -1) state.schedules[idx] = payload.new;
+                        if (idx > -1) state.schedules[idx] = { ...state.schedules[idx], ...payload.new };
                         else state.schedules.push(payload.new);
                     }
                     debouncedRender();
@@ -2053,7 +2061,7 @@
                         state.locations = state.locations.filter(l => l.id !== payload.old.id);
                     } else {
                         const idx = state.locations.findIndex(l => String(l.id) === String(payload.new.id));
-                        if (idx > -1) state.locations[idx] = payload.new;
+                        if (idx > -1) state.locations[idx] = { ...state.locations[idx], ...payload.new };
                         else state.locations.push(payload.new);
                     }
                     debouncedRender();
@@ -2063,7 +2071,7 @@
                         state.excessScans = state.excessScans.filter(s => s.id !== payload.old.id);
                     } else {
                         const idx = state.excessScans.findIndex(s => String(s.id) === String(payload.new.id));
-                        if (idx > -1) state.excessScans[idx] = payload.new;
+                        if (idx > -1) state.excessScans[idx] = { ...state.excessScans[idx], ...payload.new };
                         else {
                             state.excessScans.unshift(payload.new);
                             if (state.excessScans.length > 200) state.excessScans.pop();
