@@ -1262,6 +1262,12 @@
                     </div>
                 </div>
 
+                <!-- Local Search for Excess Scans -->
+                <div class="search-area" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; background: white; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <span class="material-symbols-outlined" style="color: var(--text-light); font-size: 18px;">search</span>
+                    <input type="text" id="excessGeneralSearch" placeholder="Filter by barcode, scanner, pallet or box..." oninput="render()" style="border: none; background: transparent; width: 100%; outline: none; font-size: 0.85rem;">
+                </div>
+
                 <!-- Quick Summary Dashboard -->
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
                     <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid var(--primary);">
@@ -2299,11 +2305,13 @@
             const palletFilter = document.getElementById('excessPallet').value;
             const dateFilter = document.getElementById('excessFilterDate').value;
             const boxFilter = document.getElementById('excessBoxSearch').value.toLowerCase();
+            const genSearch = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
             
             let filteredData = [...state.excessScans];
             
             if (scannerId) filteredData = filteredData.filter(s => s.scannerId === scannerId);
             if (palletFilter) filteredData = filteredData.filter(s => s.pallet.toLowerCase().includes(palletFilter.toLowerCase()));
+            if (genSearch) filteredData = filteredData.filter(s => (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || (s.box && s.box.toString().toLowerCase().includes(genSearch)));
             if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
             if (dateFilter) {
                 const filterISO = toLocalISO(dateFilter);
@@ -3580,21 +3588,23 @@
                 const boxSearch = document.getElementById('excessBoxSearch').value.toLowerCase();
                 const dateFilter = document.getElementById('excessFilterDate').value;
                 const filterISO = dateFilter ? toLocalISO(dateFilter) : null;
+                const genSearch = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
                 
                 const filteredExcess = state.excessScans.filter(s => {
                     const matchesBox = !boxSearch || (s.box && s.box.toString().toLowerCase().includes(boxSearch));
                     const matchesDate = !filterISO || (toLocalISO(s.timestamp) === filterISO);
-                    return matchesBox && matchesDate;
+                    const matchesGen = !genSearch || (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || (s.box && s.box.toString().toLowerCase().includes(genSearch));
+                    return matchesBox && matchesDate && matchesGen;
                 });
 
                 excessScanList.innerHTML = filteredExcess.slice(0, excessLimit).map(s => `
                     <li class="schedule-row">
                         <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}<br><small>${new Date(s.timestamp).toLocaleDateString([], {month:'short', day:'numeric'})}</small></div>
-                        <div style="flex: 1.2;">${s.scannerName}</div>
-                        <div style="flex: 1.5; font-weight: 700;">${s.barcode}</div>
+                        <div style="flex: 1.2;">${highlightMatch(s.scannerName, genSearch)}</div>
+                        <div style="flex: 1.5; font-weight: 700;">${highlightMatch(s.barcode, genSearch)}</div>
                         <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
-                        <div style="flex: 1.2;">${s.box}</div>
-                        <div style="flex: 1;">${s.pallet}</div>
+                        <div style="flex: 1.2;">${highlightMatch(s.box, genSearch || boxSearch)}</div>
+                        <div style="flex: 1;">${highlightMatch(s.pallet, genSearch)}</div>
                         <div style="width: 70px; text-align: right; display:flex; gap:4px; justify-content:flex-end; padding-right:5px">
                             <button class="btn-action-sm" onclick="editExcessScan(${s.id})"><span class="material-symbols-outlined" style="font-size:14px">edit</span></button>
                             <button class="btn-action-sm" onclick="deleteExcessScan(${s.id})" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>
