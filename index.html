@@ -1767,21 +1767,26 @@
             if (showLoader) toggleLoader(true);
             
             try {
-                const { data: members } = await supabaseClient.from('members').select('*');
-                const { data: logs } = await supabaseClient.from('attendance_logs').select('*');
-                const { data: tasks } = await supabaseClient.from('tasks').select('*');
-                const { data: schedules } = await supabaseClient.from('schedules').select('*');
-                const { data: locations } = await supabaseClient.from('locations').select('*');
+                // Fetch all data in parallel for speed
+                const [membersRes, logsRes, tasksRes, schedulesRes, locationsRes] = await Promise.all([
+                    supabaseClient.from('members').select('*'),
+                    supabaseClient.from('attendance_logs').select('*'),
+                    supabaseClient.from('tasks').select('*'),
+                    supabaseClient.from('schedules').select('*'),
+                    supabaseClient.from('locations').select('*')
+                ]);
+
+                if (membersRes.error) throw membersRes.error;
                 
-                state.members = members || [];
-                state.attendance_logs = logs || [];
-                state.tasks = tasks || [];
-                state.schedules = schedules || [];
-                state.locations = locations || [];
+                state.members = membersRes.data || [];
+                state.attendance_logs = logsRes.data || [];
+                state.tasks = tasksRes.data || [];
+                state.schedules = schedulesRes.data || [];
+                state.locations = locationsRes.data || [];
                 render();
             } catch (err) {
                 console.error("Fetch error:", err);
-                if (showLoader) showToast("Failed to refresh data", "error");
+                if (showLoader) showToast(`Sync Error: ${err.message}`, "error");
             } finally {
                 if (showLoader) toggleLoader(false);
             }
@@ -2370,6 +2375,16 @@
             else showToast(`${action} successful for ${validIds.length} members!`, "success");
             
             closeScanActionModal();
+        }
+
+        function showLogDetails(id) {
+            // Look in current members or historical logs
+            const item = state.members.find(m => m.userid === id) || state.attendance_logs.find(l => l.id === id);
+            if (item) {
+                showMemberDetails(item, true);
+            } else {
+                showToast("Details not found", "error");
+            }
         }
 
         function scanAttendance() {
@@ -3759,8 +3774,8 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Add auto-refresh every 2 seconds to ensure sync across all devices
-            setInterval(() => fetchInitialData(), 2000);
+            // Use a slower interval (30s) as a fallback, since Realtime handles the heavy lifting
+            setInterval(() => fetchInitialData(), 30000);
         } else {
             render();
         }
