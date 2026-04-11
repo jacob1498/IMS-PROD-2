@@ -1236,33 +1236,35 @@
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Barcode</label>
-                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') document.getElementById('excessQty').focus()">
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Quantity</label>
-                            <input type="number" id="excessQty" placeholder="0" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                            <input type="number" id="excessQty" placeholder="0" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') document.getElementById('excessBox').focus()">
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Box Number</label>
-                            <input type="text" id="excessBox" placeholder="e.g. 101" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                            <div style="display: flex; gap: 4px; margin-top: 4px;">
+                                <input type="text" id="excessBox" placeholder="Ex-..." style="flex: 1; box-sizing: border-box;" onkeyup="if(event.key==='Enter') document.getElementById('excessPallet').focus()">
+                                <button onclick="generateBoxNumber()" style="padding: 0 8px; background: var(--bg); color: var(--primary); border: 1px solid var(--border);" title="Generate ID"><span class="material-symbols-outlined" style="font-size: 18px;">magic_button</span></button>
+                            </div>
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Pallet Reference</label>
-                            <input type="text" id="excessPallet" placeholder="P-999" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+                            <input type="text" id="excessPallet" placeholder="P-999" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') addExcessScan()">
                         </div>
                     </div>
-                    <button onclick="addExcessScan()" style="width: 100%; padding: 12px;">
-                        <span class="material-symbols-outlined">add_circle</span> Add to Log
-                    </button>
                 </div>
 
                 <div class="card" style="padding: 0; overflow: hidden;">
-                    <div class="table-header">
-                        <div style="flex: 2;">Barcode</div>
-                        <div style="flex: 1; text-align: center;">Qty</div>
+                    <div class="table-header" style="font-size: 0.6rem;">
+                        <div style="flex: 1.2;">Time</div>
+                        <div style="flex: 1.2;">Scanner</div>
+                        <div style="flex: 1.5;">Barcode</div>
+                        <div style="flex: 0.6; text-align: center;">Qty</div>
                         <div style="flex: 1.2;">Box #</div>
-                        <div style="flex: 1.5;">Pallet Ref</div>
-                        <div style="width: 50px; text-align: right;">Action</div>
+                        <div style="flex: 1;">Pallet</div>
+                        <div style="width: 70px; text-align: right;">Action</div>
                     </div>
                     <ul id="excessScanList" style="padding-bottom: 0;"></ul>
                 </div>
@@ -1654,6 +1656,7 @@
             ],
             locations: [],
             excessScans: [],
+            editingExcessId: null,
             tasks: [],
             schedules: [],
             ...uiSettings
@@ -2111,27 +2114,81 @@
             const box = document.getElementById('excessBox').value;
             const pallet = document.getElementById('excessPallet').value;
 
-            if (!scannerId || !barcode || !qty) return showToast("Scanner, Barcode and Qty are required!", "error");
+            if (!scannerId || !barcode || !qty) {
+                if(barcode || qty) showToast("Scanner, Barcode and Qty are required!", "error");
+                return;
+            }
 
             const scanner = state.members.find(m => m.userid === scannerId);
-            const newScan = {
-                id: Date.now(),
-                scannerName: scanner.name,
-                scannerId: scannerId,
-                barcode: barcode,
-                qty: qty,
-                box: box || '--',
-                pallet: pallet || '--',
-                timestamp: new Date().toISOString()
-            };
-
-            state.excessScans.push(newScan);
-            showToast("Excess entry logged!", "success");
+            
+            if (state.editingExcessId) {
+                const idx = state.excessScans.findIndex(s => s.id === state.editingExcessId);
+                if (idx !== -1) {
+                    state.excessScans[idx] = {
+                        ...state.excessScans[idx],
+                        scannerName: scanner.name,
+                        scannerId: scannerId,
+                        barcode: barcode,
+                        qty: qty,
+                        box: box || '--',
+                        pallet: pallet || '--'
+                    };
+                    showToast("Entry updated!", "success");
+                }
+                state.editingExcessId = null;
+            } else {
+                const newScan = {
+                    id: Date.now(),
+                    scannerName: scanner.name,
+                    scannerId: scannerId,
+                    barcode: barcode,
+                    qty: qty,
+                    box: box || '--',
+                    pallet: pallet || '--',
+                    timestamp: new Date().toISOString()
+                };
+                state.excessScans.push(newScan);
+                showToast("Excess entry logged!", "success");
+            }
             
             document.getElementById('excessBarcode').value = '';
             document.getElementById('excessQty').value = '';
+            document.getElementById('excessBox').value = '';
+            document.getElementById('excessPallet').value = '';
             document.getElementById('excessBarcode').focus();
             render();
+        }
+
+        function generateBoxNumber() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2, '0');
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const y = String(now.getFullYear()).slice(-2);
+            const prefix = `Ex-${d}${m}${y}-`;
+            
+            const todayScans = state.excessScans.filter(s => s.box && s.box.startsWith(prefix));
+            let nextSeq = 1;
+            if (todayScans.length > 0) {
+                const sequences = todayScans.map(s => parseInt(s.box.split('-')[2]) || 0).filter(n => !isNaN(n));
+                if (sequences.length > 0) nextSeq = Math.max(...sequences) + 1;
+            }
+            
+            const finalBox = prefix + String(nextSeq).padStart(4, '0');
+            document.getElementById('excessBox').value = finalBox;
+            document.getElementById('excessPallet').focus();
+        }
+
+        function editExcessScan(id) {
+            const scan = state.excessScans.find(s => s.id === id);
+            if (!scan) return;
+            state.editingExcessId = id;
+            document.getElementById('excessScannerInput').value = scan.scannerId;
+            document.getElementById('excessBarcode').value = scan.barcode;
+            document.getElementById('excessQty').value = scan.qty;
+            document.getElementById('excessBox').value = scan.box === '--' ? '' : scan.box;
+            document.getElementById('excessPallet').value = scan.pallet === '--' ? '' : scan.pallet;
+            document.getElementById('excessBarcode').focus();
+            showToast("Editing entry...", "info");
         }
 
         function deleteExcessScan(id) {
@@ -3411,7 +3468,9 @@
             if (excessScannerInput && state.members.length > 0) {
                 const currentVal = excessScannerInput.value;
                 excessScannerInput.innerHTML = '<option value="" disabled selected>Select Scanner...</option>' + 
-                    state.members.map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
+                    state.members
+                    .filter(m => m.role !== 'Back up')
+                    .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
                 if (currentVal) excessScannerInput.value = currentVal;
             }
 
@@ -3419,13 +3478,16 @@
             const excessScanList = document.getElementById('excessScanList');
             if (excessScanList) {
                 excessScanList.innerHTML = [...state.excessScans].reverse().map(s => `
-                    <li class="schedule-row" style="font-size: 0.75rem;">
-                        <div style="flex: 2; font-weight: 700;">${s.barcode}</div>
-                        <div style="flex: 1; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
+                    <li class="schedule-row" style="font-size: 0.7rem;">
+                        <div style="flex: 1.2;">${new Date(s.timestamp).toLocaleString([], {hour:'2-digit', minute:'2-digit', month:'numeric', day:'numeric'})}</div>
+                        <div style="flex: 1.2;">${s.scannerName}</div>
+                        <div style="flex: 1.5; font-weight: 700;">${s.barcode}</div>
+                        <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
                         <div style="flex: 1.2;">${s.box}</div>
-                        <div style="flex: 1.5;">${s.pallet}</div>
-                        <div style="width: 50px; text-align: right;">
-                            <button class="btn-action-sm" onclick="deleteExcessScan(${s.id})" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
+                        <div style="flex: 1;">${s.pallet}</div>
+                        <div style="width: 70px; text-align: right; display:flex; gap:4px; justify-content:flex-end; padding-right:5px">
+                            <button class="btn-action-sm" onclick="editExcessScan(${s.id})"><span class="material-symbols-outlined" style="font-size:14px">edit</span></button>
+                            <button class="btn-action-sm" onclick="deleteExcessScan(${s.id})" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>
                         </div>
                     </li>
                 `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
