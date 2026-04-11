@@ -512,7 +512,10 @@
             /* FAB & Footer Navigation Visibility */
             .scan-fab { display: flex !important; bottom: 85px; right: 20px; }
             #checkinSubSection .scan-area { display: none; }
-            #excessScanForm { display: none; }
+            
+            /* Restore Scan Excess Form on Mobile and stack fields for stability */
+            #excessScanForm { display: block !important; margin-bottom: 15px; padding: 16px !important; }
+            #excessScanForm > div { grid-template-columns: 1fr !important; gap: 10px !important; }
 
             .table-header:not(#excessScanSection .table-header):not(#scheduleSection .table-header) { display: none !important; }
             li { 
