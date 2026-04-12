@@ -794,6 +794,9 @@
             #scheduleSection .table-header > div { font-size: 0.55rem !important; padding: 8px 2px !important; }
             .schedule-row { 
                 display: flex !important; 
+                /* For the excess scan section, hide the table-like display */
+                /* This includes the table header and the list of individual scans */
+                /* #excessScanSection .table-header { display: none !important; } */
                 grid-template-columns: none !important; 
                 grid-template-areas: none !important;
                 border-left: 4px solid var(--border) !important; 
@@ -802,6 +805,10 @@
                 border-radius: 8px !important;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
             }
+            /* Hide the table header and the actual list of scans on mobile for excess scan feature */
+            #excessScanSection .table-header { display: none !important; }
+            #excessScanSection #excessScanList { display: none !important; }
+
             .schedule-row > div { font-size: 0.65rem !important; padding: 10px 4px !important; }
             .sched-shift-container { grid-template-columns: 1fr; }
         }
