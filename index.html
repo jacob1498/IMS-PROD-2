@@ -3620,12 +3620,16 @@
             // Update Excess Scanner Dropdown
             const excessScannerInput = document.getElementById('excessScannerInput');
             if (excessScannerInput && state.members.length > 0) {
-                const currentVal = excessScannerInput.value;
+                let currentVal = excessScannerInput.value;
+                const savedScanner = localStorage.getItem('preferredScannerId');
+                
                 excessScannerInput.innerHTML = '<option value="" disabled selected>Select Scanner...</option>' + 
                     state.members
                     .filter(m => m.role !== 'Back up')
                     .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
+                
                 if (currentVal) excessScannerInput.value = currentVal;
+                else if (savedScanner) excessScannerInput.value = savedScanner;
             }
 
             // Render Excess Scan List
@@ -4214,6 +4218,13 @@
         setInterval(checkThresholdAlerts, 30000); // Check every 30 seconds
 
         updateClock();
+
+        // Global listener for scanner selection persistence
+        document.addEventListener('change', (e) => {
+            if (e.target && e.target.id === 'excessScannerInput') {
+                localStorage.setItem('preferredScannerId', e.target.value);
+            }
+        });
 
         // Initialize filter values from state safely
         const fromFilter = document.getElementById('historyFromDate');
