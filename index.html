@@ -1300,7 +1300,8 @@
                         <button id="toggleTableBtn" onclick="toggleExcessVisibility('table')" style="background: var(--primary);" title="Toggle Detailed Log">
                             <span class="material-symbols-outlined">visibility</span>
                         </button>
-                        <input type="text" id="excessBoxSearch" placeholder="Search Box #" oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 100px;">
+                        <input type="text" id="excessGeneralSearch" placeholder="Search ID, Name, Pallet..." oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 160px;">
+                        <input type="text" id="excessBoxSearch" placeholder="Box #" oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 70px;">
                         <input type="date" id="excessFilterDate" onchange="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px;">
                         <button onclick="exportExcessToExcel()" style="background: var(--success);" title="Smart Export to CSV">
                             <span class="material-symbols-outlined">file_download</span>
@@ -2411,11 +2412,21 @@
                 
                 if (!exportAllForDate) {
                     if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
-                    if (genSearch) filteredData = filteredData.filter(s => (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+                    if (genSearch) filteredData = filteredData.filter(s => 
+                        (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || 
+                        (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
+                        (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
+                        (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
+                        (s.box && s.box.toString().toLowerCase().includes(genSearch)));
                 }
             } else {
                 if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
-                if (genSearch) filteredData = filteredData.filter(s => (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+                if (genSearch) filteredData = filteredData.filter(s => 
+                    (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || 
+                    (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
+                    (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
+                    (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
+                    (s.box && s.box.toString().toLowerCase().includes(genSearch)));
             }
 
             if (filteredData.length === 0) return showToast("No records found matching these filters!", "error");
@@ -2453,7 +2464,12 @@
             }
             
             if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
-            if (genSearch) filteredData = filteredData.filter(s => (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+            if (genSearch) filteredData = filteredData.filter(s => 
+                (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || 
+                (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
+                (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
+                (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
+                (s.box && s.box.toString().toLowerCase().includes(genSearch)));
 
             if (filteredData.length === 0) return showToast("No records found matching current filters to clear.", "error");
             if (!confirm(`Are you sure you want to PERMANENTLY DELETE ${filteredData.length} filtered records from the database? This action cannot be undone.`)) return;
@@ -3690,7 +3706,12 @@
             const filteredExcess = state.excessScans.filter(s => {
                 const matchesBox = !boxSearchVal || (s.box && s.box.toString().toLowerCase().includes(boxSearchVal));
                 const matchesDate = !filterISOVal || (toLocalISO(s.timestamp) === filterISOVal);
-                const matchesGen = !genSearchVal || (s.barcode && s.barcode.toLowerCase().includes(genSearchVal)) || (s.scannerName && s.scannerName.toLowerCase().includes(genSearchVal)) || (s.pallet && s.pallet.toLowerCase().includes(genSearchVal)) || (s.box && s.box.toString().toLowerCase().includes(genSearchVal));
+                const matchesGen = !genSearchVal || 
+                    (s.barcode && s.barcode.toLowerCase().includes(genSearchVal)) || 
+                    (s.scannerName && s.scannerName.toLowerCase().includes(genSearchVal)) || 
+                    (s.scannerId && s.scannerId.toLowerCase().includes(genSearchVal)) || 
+                    (s.pallet && s.pallet.toLowerCase().includes(genSearchVal)) || 
+                    (s.box && s.box.toString().toLowerCase().includes(genSearchVal));
                 return matchesBox && matchesDate && matchesGen;
             });
 
