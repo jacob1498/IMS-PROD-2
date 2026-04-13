@@ -3888,14 +3888,12 @@
             // Update Checklist Team Leader Dropdown
             const tlSelect = document.getElementById('checklistTL');
             if (tlSelect) {
-                const currentTL = tlSelect.value;
                 // Priority: Current selection > Saved selection
                 const savedTL = localStorage.getItem('lastChecklistTL');
                 const currentTL = tlSelect.value || savedTL;
                 
                 tlSelect.innerHTML = '<option value="" disabled selected>Select Team Leader...</option>' + 
                     state.members.filter(m => m.role === 'Team leader').map(m => `<option value="${m.userid}">${m.name}</option>`).join('');
-                if (currentTL) tlSelect.value = currentTL;
                 
                 if (currentTL && state.members.some(m => m.userid === currentTL)) {
                     tlSelect.value = currentTL;
