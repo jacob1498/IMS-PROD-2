@@ -3262,8 +3262,15 @@
             if (type === 'active') {
                 titleText = "Active Counters";
                 list = allCounters.filter(m => activeCounterIds.has(m.userid)).map(m => {
-                    const task = activeTasks.find(t => t.userid === m.userid);
-                    return { ...m, subText: `${task.location} (${task.bintype || 'Pick'}) • Running: ${calculateDuration(task.starttime)}` };
+                    const taskIdx = state.tasks.findIndex(t => t.userid === m.userid && !t.completed);
+                    const task = state.tasks[taskIdx];
+                    return { 
+                        ...m, 
+                        taskIdx,
+                        subText: `${task.location} (${task.bintype || 'Pick'}) • Running: ${calculateDuration(task.starttime)}`,
+                        hasActiveTask: true,
+                        canStartTask: false
+                    };
                 });
             } else if (type === 'inactive') {
                 titleText = "Inactive Counters";
@@ -3275,7 +3282,7 @@
                     if (lastTask) {
                         subText += ` • Last: ${calculateDuration(lastTask.starttime, lastTask.endtime)} (${new Date(lastTask.endtime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})})`;
                     }
-                    return { ...m, subText };
+                    return { ...m, subText, hasActiveTask: false, canStartTask: m.status !== 'On Break' };
                 });
             } else if (type === 'long') {
                 titleText = "Long Cycle Sessions (> 1Hr)";
@@ -3285,8 +3292,15 @@
                     const diff = (now - new Date(t.starttime)) / 3600000;
                     return diff > 1;
                 }).map(m => {
-                    const task = activeTasks.find(t => t.userid === m.userid);
-                    return { ...m, subText: `${task.location} (${task.bintype}) • Session: ${calculateDuration(task.starttime)}`, isAlert: true };
+                    const taskIdx = state.tasks.findIndex(t => t.userid === m.userid && !t.completed);
+                    const task = state.tasks[taskIdx];
+                    return { 
+                        ...m, 
+                        taskIdx,
+                        subText: `${task.location} (${task.bintype}) • Session: ${calculateDuration(task.starttime)}`, 
+                        isAlert: true,
+                        hasActiveTask: true
+                    };
                 });
             } else if (type === 'break') {
                 titleText = "Designated Counters on Break";
@@ -3304,7 +3318,16 @@
                     <div class="detail-row" style="flex-direction:column; align-items:flex-start; gap:4px; padding: 12px 0;">
                         <div style="display:flex; justify-content:space-between; width:100%; align-items:center">
                             <span style="font-weight:700; font-size:1.05rem">${m.name}</span>
-                            ${m.isAlert ? `<span style="color:var(--danger); font-weight:800; font-size:0.8rem; background:#fee2e2; padding: 2px 8px; border-radius:6px">OVER 1HR</span>` : ''}
+                            <div style="display:flex; gap:8px; align-items:center">
+                                ${m.isAlert ? `<span style="color:var(--danger); font-weight:800; font-size:0.8rem; background:#fee2e2; padding: 2px 8px; border-radius:6px">OVER 1HR</span>` : ''}
+                                <div style="display:flex; gap:4px">
+                                    ${m.hasActiveTask ? `
+                                        <button class="btn-action-sm" onclick="closeModal(); stopTimer(${m.taskIdx});" title="End Session" style="background:#fee2e2; color:#991b1b; border: 1px solid var(--border);"><span class="material-symbols-outlined" style="font-size:16px">stop_circle</span></button>
+                                    ` : (m.canStartTask ? `
+                                        <button class="btn-action-sm" onclick="closeModal(); document.getElementById('modalTaskInput').value='${m.userid}'; openSessionModal();" title="Start Session" style="background:#dcfce7; color:#166534; border: 1px solid var(--border);"><span class="material-symbols-outlined" style="font-size:16px">play_circle</span></button>
+                                    ` : '')}
+                                </div>
+                            </div>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-light); font-weight:500">${m.role} • ID: ${m.userid}</div>
                         <div style="font-size:0.85rem; color:var(--primary); font-weight:600; margin-top:2px">${m.subText}</div>
