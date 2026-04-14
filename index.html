@@ -825,6 +825,23 @@
             .schedule-row > div { font-size: 0.65rem !important; padding: 10px 4px !important; }
             .sched-shift-container { grid-template-columns: 1fr; }
         }
+
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: #e2e8f0;
+            background-image: linear-gradient(90deg, #e2e8f0 0px, #f1f5f9 40px, #e2e8f0 80px);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -150% 0; }
+            100% { background-position: 150% 0; }
+        }
+
+        .skeleton-card { height: 120px; width: 100%; }
     </style>
 </head>
 <body>
@@ -1333,9 +1350,17 @@
 
                 <div id="excessScanForm" class="card" style="margin-bottom: 20px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Lead Scanner</label>
+                            <select id="excessScannerInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;" onchange="localStorage.setItem('preferredScannerId', this.value)"></select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Assistant 1</label>
+                            <select id="excessAssistant1Input" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
+                        </div>
                         <div style="grid-column: 1 / -1;">
-                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Scanner Name</label>
-                            <select id="excessScannerInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Assistant 2</label>
+                            <select id="excessAssistant2Input" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Barcode</label>
@@ -1372,10 +1397,10 @@
                     <div id="excessLogView">
                         <div class="table-header">
                             <div style="flex: 1.2;">Time & Date</div>
-                            <div style="flex: 1.2;">Scanner</div>
+                            <div style="flex: 3;">Crew (Lead + Assistants)</div>
                             <div style="flex: 1.5;">Barcode</div>
                             <div style="flex: 0.6; text-align: center;">Qty</div>
-                            <div style="flex: 1.2;">Box #</div>
+                            <div style="flex: 1.2;">Box # or Location</div>
                             <div style="flex: 1;">Pallet</div>
                             <div style="width: 70px; text-align: right; padding-right: 5px; border-right: none;">Action</div>
                         </div>
@@ -1384,11 +1409,11 @@
 
                     <div id="excessSummaryView" class="hidden">
                         <div class="table-header" style="background: #f1f5f9;">
-                            <div style="flex: 2;">Scanner Name</div>
-                            <div style="flex: 1; text-align: center;">Total Scans</div>
-                            <div style="flex: 1; text-align: center;">Total Units</div>
-                            <div style="flex: 1.2; text-align: center;">Unique Items</div>
-                            <div style="flex: 1.5; text-align: right; padding-right: 10px; border-right: none;">Last Active</div>
+                            <div style="flex: 3;">Crew (Lead + Assistants)</div>
+                            <div style="flex: 0.8; text-align: center;">Scans</div>
+                            <div style="flex: 0.8; text-align: center;">Units</div>
+                            <div style="flex: 1; text-align: center;">Unique Items</div>
+                            <div style="flex: 1.2; text-align: right; padding-right: 10px; border-right: none;">Last Active</div>
                         </div>
                         <ul id="excessScannerSummaryList"></ul>
                     </div>
@@ -1787,6 +1812,7 @@
             tasks: [],
             schedules: [],
             checklistCompletions: [],
+            isLoading: true,
             ...uiSettings
         };
 
@@ -2066,8 +2092,15 @@
 
         // Database Sync Logic
         async function fetchInitialData(showLoader = false) {
-            if (!supabaseClient) return;
-            if (showLoader) toggleLoader(true);
+            if (!supabaseClient) {
+                state.isLoading = false;
+                render();
+                return;
+            }
+            if (showLoader) {
+                state.isLoading = true;
+                render();
+            }
             
             try {
                 const { data: members } = await supabaseClient.from('members').select('*');
@@ -2089,6 +2122,8 @@
                 console.error("Fetch error:", err);
                 if (showLoader) showToast("Failed to refresh data", "error");
             } finally {
+                state.isLoading = false;
+                render();
                 if (showLoader) toggleLoader(false);
             } 
         }
@@ -2288,30 +2323,45 @@
 
         async function addExcessScan() {
             const scannerId = document.getElementById('excessScannerInput').value;
+            const asst1Id = document.getElementById('excessAssistant1Input').value;
+            const asst2Id = document.getElementById('excessAssistant2Input').value;
             const barcode = document.getElementById('excessBarcode').value;
             const qty = document.getElementById('excessQty').value;
             const box = document.getElementById('excessBox').value;
             const pallet = document.getElementById('excessPallet').value;
 
+            // Validation to avoid accidental barcode input in pallet field (detects long numeric strings)
+            if (pallet.length > 10 && /^\d+$/.test(pallet)) {
+                showToast("Pallet reference looks like a barcode. Please check your input.", "error");
+                return;
+            }
+
             if (!scannerId || !barcode || !qty || isNaN(parseInt(qty)) || parseInt(qty) <= 0) {
-                if (!scannerId) showToast("Please select a Scanner Name", "error");
+                if (!scannerId) showToast("Please select a Lead Scanner", "error");
                 else if (!barcode) showToast("Barcode is required", "error");
                 else if (!qty || isNaN(parseInt(qty)) || parseInt(qty) <= 0) showToast("Valid Quantity is required", "error");
                 return;
             }
 
             const scanner = state.members.find(m => m.userid === scannerId);
-            toggleLoader(true);
+            const asst1 = state.members.find(m => m.userid === asst1Id);
+            const asst2 = state.members.find(m => m.userid === asst2Id);
             
             const payload = {
                 scannerName: scanner.name,
                 scannerId: scannerId,
+                assistant1Name: asst1 ? asst1.name : '--',
+                assistant1Id: asst1Id || '--',
+                assistant2Name: asst2 ? asst2.name : '--',
+                assistant2Id: asst2Id || '--',
                 barcode: barcode,
                 qty: parseInt(qty),
                 box: box || '--',
                 pallet: pallet || '--',
                 timestamp: new Date().toISOString()
             };
+
+            toggleLoader(true);
 
             let result;
             if (state.editingExcessId) {
@@ -2359,6 +2409,8 @@
             if (!scan) return;
             state.editingExcessId = id;
             document.getElementById('excessScannerInput').value = scan.scannerId;
+            document.getElementById('excessAssistant1Input').value = scan.assistant1Id === '--' ? '' : scan.assistant1Id;
+            document.getElementById('excessAssistant2Input').value = scan.assistant2Id === '--' ? '' : scan.assistant2Id;
             document.getElementById('excessBarcode').value = scan.barcode;
             document.getElementById('excessQty').value = scan.qty;
             document.getElementById('excessBox').value = scan.box === '--' ? '' : scan.box;
@@ -2434,12 +2486,22 @@
             toggleLoader(true);
             setTimeout(() => {
                 try {
-                    const headers = ["Timestamp", "Scanner Name", "Scanner ID", "Barcode", "Qty", "Box Number", "Pallet Ref"];
+                    
+                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "Qty", "Box Number", "Pallet Ref"];
                     const csvRows = [headers.join(",")];
                     filteredData.forEach(s => {
                         const row = [
-                            new Date(s.timestamp).toLocaleString(), 
-                            s.scannerName, s.scannerId, s.barcode, s.qty, s.box, s.pallet
+                            new Date(s.timestamp).toLocaleString(),
+                            s.scannerName,
+                            s.scannerId || '--',
+                            s.assistant1Name || '--',
+                            s.assistant1Id || '--',
+                            s.assistant2Name || '--',
+                            s.assistant2Id || '--',
+                            s.barcode,
+                            s.qty,
+                            s.box,
+                            s.pallet
                         ];
                         csvRows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
                     });
@@ -3764,6 +3826,14 @@
                  const grandUniqueItems = new Set();
                  const activeNowThreshold = 30 * 60 * 1000; // 30 minutes
 
+                 if (state.isLoading) {
+                     excessSumCards.innerHTML = `
+                        <div class="card" style="grid-column: 1 / -1; height: 100px;"><div class="skeleton" style="width:100%; height:100%"></div></div>
+                        ${Array(3).fill('<div class="card" style="height:150px"><div class="skeleton" style="width:100%; height:100%"></div></div>').join('')}
+                     `;
+                     return;
+                 }
+
                  filteredExcess.forEach(s => {
                      const key = s.scannerId || 'Unknown';
                      if (!scannerSummary[key]) {
@@ -3861,7 +3931,18 @@
                     filteredExcess.forEach(s => {
                         const id = s.scannerId || 'Unknown';
                         if (!scannerStats[id]) {
-                        scannerStats[id] = { id, name: s.scannerName || id, count: 0, qty: 0, barcodes: new Set(), last: s.timestamp };
+                            scannerStats[id] = { 
+                                id, 
+                                name: s.scannerName || id, 
+                                count: 0, 
+                                qty: 0, 
+                                barcodes: new Set(), 
+                                last: s.timestamp,
+                                asst1: s.assistant1Name,
+                                asst1Id: s.assistant1Id,
+                                asst2: s.assistant2Name,
+                                asst2Id: s.assistant2Id
+                            };
                         }
                         scannerStats[id].count++;
                         scannerStats[id].qty += (parseInt(s.qty) || 0);
@@ -3874,16 +3955,25 @@
 
                     scannerSummaryList.innerHTML = sortedStats.map(stat => {
                         const isLive = (Date.now() - new Date(stat.last)) < activeThreshold;
+                        const leadLine = `Lead: ${stat.name} (${stat.id})`;
+                        const asstArr = [];
+                        if (stat.asst1 && stat.asst1 !== '--') asstArr.push(`${stat.asst1} (${stat.asst1Id || ''})`);
+                        if (stat.asst2 && stat.asst2 !== '--') asstArr.push(`${stat.asst2} (${stat.asst2Id || ''})`);
+                        const assistLine = asstArr.length > 0 ? `Assist: ${asstArr.join(' / ')}` : '';
+
                         return `
                         <li class="schedule-row" onclick="showScannerScanList('${stat.id}')" style="cursor: pointer; border-left: 4px solid ${isLive ? 'var(--success)' : 'var(--border)'}">
-                            <div style="flex: 2; font-weight: 700; gap: 8px; color: ${isLive ? 'var(--success)' : 'inherit'}">
-                                    ${stat.name}
-                                ${isLive ? '<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:var(--success); background:#dcfce7; padding:1px 5px; border-radius:4px; animation: pulse 2s infinite; border: 1px solid #bbf7d0">● LIVE</span>' : ''}
+                            <div style="flex: 3; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;">
+                                <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.85rem; font-weight: 700; color: ${isLive ? 'var(--success)' : 'inherit'}">
+                                    ${leadLine}
+                                    ${isLive ? '<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.55rem; color:var(--success); background:#dcfce7; padding:1px 5px; border-radius:4px; animation: pulse 2s infinite; border: 1px solid #bbf7d0">● LIVE</span>' : ''}
                                 </div>
-                                <div style="flex: 1; justify-content: center; font-weight: 800;">${stat.count}</div>
-                                <div style="flex: 1; justify-content: center; color: var(--success); font-weight: 800;">${stat.qty}</div>
-                                <div style="flex: 1.2; justify-content: center;">${stat.barcodes.size}</div>
-                                <div style="flex: 1.5; justify-content: flex-end; padding-right: 10px; font-weight: 700; color: var(--primary);">
+                                ${assistLine ? `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.7rem; color: var(--text-light);">${assistLine}</div>` : ''}
+                            </div>
+                            <div style="flex: 0.8; justify-content: center; font-weight: 800;">${stat.count}</div>
+                            <div style="flex: 0.8; justify-content: center; color: var(--success); font-weight: 800;">${stat.qty}</div>
+                            <div style="flex: 1; justify-content: center;">${stat.barcodes.size}</div>
+                            <div style="flex: 1.2; justify-content: flex-end; padding-right: 10px; font-weight: 700; color: var(--primary);">
                                     ${new Date(stat.last).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                                 </div>
                             </li>
@@ -3978,19 +4068,19 @@
             }
 
             // Update Excess Scanner Dropdown
-            const excessScannerInput = document.getElementById('excessScannerInput');
-            if (excessScannerInput && state.members.length > 0) {
-                let currentVal = excessScannerInput.value;
-                const savedScanner = localStorage.getItem('preferredScannerId');
-                
-                excessScannerInput.innerHTML = '<option value="" disabled selected>Select Scanner...</option>' + 
-                    state.members
+            ['excessScannerInput', 'excessAssistant1Input', 'excessAssistant2Input'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && state.members.length > 0) {
+                    let currentVal = el.value;
+                    const options = state.members
                     .filter(m => m.role !== 'Back up')
                     .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
-                
-                if (currentVal) excessScannerInput.value = currentVal;
-                else if (savedScanner) excessScannerInput.value = savedScanner;
-            }
+                    
+                    el.innerHTML = `<option value="" ${id !== 'excessScannerInput' ? 'selected' : 'disabled'}>${id === 'excessScannerInput' ? 'Select Lead...' : 'None'}</option>` + options;
+                    if (currentVal) el.value = currentVal;
+                    else if (id === 'excessScannerInput' && localStorage.getItem('preferredScannerId')) el.value = localStorage.getItem('preferredScannerId');
+                }
+            });
 
             // Render Excess Scan List
             const excessScanList = document.getElementById('excessScanList');
@@ -3998,12 +4088,22 @@
 
             if (excessScanList) {
                 excessScanList.innerHTML = filteredExcess.slice(0, excessLimit).map(s => `
+                    ${(() => {
+                        const leadLine = `Lead: ${s.scannerName || 'Unknown'} (${s.scannerId || ''})`;
+                        const asstArr = [];
+                        if (s.assistant1Name && s.assistant1Name !== '--') asstArr.push(`${s.assistant1Name} (${s.assistant1Id || ''})`);
+                        if (s.assistant2Name && s.assistant2Name !== '--') asstArr.push(`${s.assistant2Name} (${s.assistant2Id || ''})`);
+                        const assistLine = asstArr.length > 0 ? `Assist: ${asstArr.join(' / ')}` : '';
+                        return `
                     <li class="schedule-row">
                         <div style="flex: 1.2; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.1; gap: 2px; overflow: hidden;">
                             <span style="font-weight: 800; color: var(--text); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             <span style="font-size: 0.6rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleDateString([], {day:'2-digit', month:'short', year:'2-digit'})}</span>
                         </div>
-                        <div style="flex: 1.2;" title="${s.scannerName}">${highlightMatch(s.scannerName, genSearchVal)}</div>
+                        <div style="flex: 3; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;" title="${leadLine}${assistLine ? ' | ' + assistLine : ''}">
+                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.85rem; font-weight: 600;">${highlightMatch(leadLine, genSearchVal)}</div>
+                            ${assistLine ? `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.7rem; color: var(--text-light);">${highlightMatch(assistLine, genSearchVal)}</div>` : ''}
+                        </div>
                         <div style="flex: 1.5; font-weight: 700;" title="${s.barcode}">${highlightMatch(s.barcode, genSearchVal)}</div>
                         <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
                         <div style="flex: 1.2;" title="${s.box}">${highlightMatch(s.box, genSearchVal || boxSearchVal)}</div>
@@ -4013,6 +4113,7 @@
                             <button class="btn-action-sm" onclick="deleteExcessScan(${s.id})" style="color:var(--danger)"><span class="material-symbols-outlined" style="font-size:14px">delete</span></button>
                         </div>
                     </li>
+                    `})()}
                 `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
 
                 if (filteredExcess.length > excessLimit) {
@@ -4418,23 +4519,37 @@
             if(document.getElementById('regTotalCount')) document.getElementById('regTotalCount').innerText = totalMembers;
             
             // Update Shift Summaries
-            if(document.getElementById('sumS1TotalPercent')) document.getElementById('sumS1TotalPercent').innerText = s1.totalPct + '%';
-            if(document.getElementById('sumS1TotalSub')) document.getElementById('sumS1TotalSub').innerText = `${s1.total} / ${s1.requirement}`;
-            if(document.getElementById('sumS1PresentCount')) document.getElementById('sumS1PresentCount').innerText = s1.present;
-            if(document.getElementById('sumS1PresentSub')) document.getElementById('sumS1PresentSub').innerText = `${s1.present} / ${s1.requirement}`;
+            const updateShiftCard = (idPrefix, data) => {
+                const percentEl = document.getElementById(`sum${idPrefix}TotalPercent`);
+                const subEl = document.getElementById(`sum${idPrefix}TotalSub`);
+                const presentEl = document.getElementById(`sum${idPrefix}PresentCount`);
+                const presentSubEl = document.getElementById(`sum${idPrefix}PresentSub`);
 
-            if(document.getElementById('sumS2TotalPercent')) document.getElementById('sumS2TotalPercent').innerText = s2.totalPct + '%';
-            if(document.getElementById('sumS2TotalSub')) document.getElementById('sumS2TotalSub').innerText = `${s2.total} / ${s2.requirement}`;
-            if(document.getElementById('sumS2PresentCount')) document.getElementById('sumS2PresentCount').innerText = s2.present;
-            if(document.getElementById('sumS2PresentSub')) document.getElementById('sumS2PresentSub').innerText = `${s2.present} / ${s2.requirement}`;
+                if (state.isLoading) {
+                    if (percentEl) percentEl.innerHTML = '<span class="skeleton" style="width:60%; height:2.2rem"></span>';
+                    if (subEl) subEl.innerHTML = '<span class="skeleton" style="width:40%; height:0.75rem"></span>';
+                    if (presentEl) presentEl.innerHTML = '<span class="skeleton" style="width:40%; height:2.2rem"></span>';
+                    if (presentSubEl) presentSubEl.innerHTML = '<span class="skeleton" style="width:40%; height:0.75rem"></span>';
+                } else {
+                    if (percentEl) percentEl.innerText = data.totalPct + '%';
+                    if (subEl) subEl.innerText = `${data.total} / ${data.requirement}`;
+                    if (presentEl) presentEl.innerText = data.present;
+                    if (presentSubEl) presentSubEl.innerText = `${data.present} / ${data.requirement}`;
+                }
+            };
+            updateShiftCard('S1', s1);
+            updateShiftCard('S2', s2);
+            updateShiftCard('S3', s3);
 
-            if(document.getElementById('sumS3TotalPercent')) document.getElementById('sumS3TotalPercent').innerText = s3.totalPct + '%';
-            if(document.getElementById('sumS3TotalSub')) document.getElementById('sumS3TotalSub').innerText = `${s3.total} / ${s3.requirement}`;
-            if(document.getElementById('sumS3PresentCount')) document.getElementById('sumS3PresentCount').innerText = s3.present;
-            if(document.getElementById('sumS3PresentSub')) document.getElementById('sumS3PresentSub').innerText = `${s3.present} / ${s3.requirement}`;
-
-            if(document.getElementById('sumBreak')) document.getElementById('sumBreak').innerText = breakCount;
-            if(document.getElementById('sumLongBreak')) document.getElementById('sumLongBreak').innerText = longBreakCount;
+            if(document.getElementById('sumBreak')) {
+                if (state.isLoading) {
+                    document.getElementById('sumBreak').innerHTML = '<span class="skeleton" style="width:40%; height:2.2rem"></span>';
+                    document.getElementById('sumLongBreak').innerHTML = '<span class="skeleton" style="width:40%; height:2.2rem"></span>';
+                } else {
+                    document.getElementById('sumBreak').innerText = breakCount;
+                    document.getElementById('sumLongBreak').innerText = longBreakCount;
+                }
+            }
 
             // Update Reports Reserved Summary
             if (state.tasks) {
@@ -4466,10 +4581,17 @@
 
             const countersOnBreak = operationalCounters.filter(m => m.status === 'On Break').length;
 
-            if(document.getElementById('sumCycleActive')) document.getElementById('sumCycleActive').innerText = totalActiveCounters;
-            if(document.getElementById('sumCycleInactive')) document.getElementById('sumCycleInactive').innerText = totalInactiveCounters;
-            if(document.getElementById('sumCycleLong')) document.getElementById('sumCycleLong').innerText = longCycleCount;
-            if(document.getElementById('sumCycleBreak')) document.getElementById('sumCycleBreak').innerText = countersOnBreak;
+            const updateCycleCard = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (state.isLoading) el.innerHTML = '<span class="skeleton" style="width:50%; height:2.2rem"></span>';
+                    else el.innerText = value;
+                }
+            };
+            updateCycleCard('sumCycleActive', totalActiveCounters);
+            updateCycleCard('sumCycleInactive', totalInactiveCounters);
+            updateCycleCard('sumCycleLong', longCycleCount);
+            updateCycleCard('sumCycleBreak', countersOnBreak);
         }
 
         // Handle scroll events for sticky UI and back-to-top button
