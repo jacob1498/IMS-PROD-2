@@ -1317,6 +1317,21 @@
                         <button id="toggleTableBtn" onclick="toggleExcessVisibility('table')" style="background: var(--primary);" title="Toggle Detailed Log">
                             <span class="material-symbols-outlined">visibility</span>
                         </button>
+                        <select id="excessDcFilter" onchange="state.activeDcCode = this.value; saveData();" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 110px; font-weight: bold; color: var(--primary);">
+                            <option value="">SELECT DC</option>
+                            <option value="2367">DC 2367</option>
+                            <option value="7132">DC 7132</option>
+                        </select>
+                        <select id="excessRemarkFilter" onchange="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 120px; font-weight: bold; color: var(--primary);">
+                            <option value="">ALL REMARKS</option>
+                            <option value="Damaged">Damaged</option>
+                            <option value="Excess">Excess</option>
+                            <option value="Near Expiry">Near Expiry</option>
+                            <option value="Addback">Addback</option>
+                            <option value="Stocks Transfer">Stocks Transfer</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Disposal">Disposal</option>
+                        </select>
                         <input type="text" id="excessGeneralSearch" placeholder="Search ID, Name, Pallet..." oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 160px;">
                         <input type="text" id="excessBoxSearch" placeholder="Box #" oninput="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px; width: 70px;">
                         <input type="date" id="excessFilterDate" onchange="render()" style="font-size: 0.75rem; padding: 4px; border: 1px solid var(--border); border-radius: 4px;">
@@ -1329,27 +1344,68 @@
                         <button onclick="state.excessScans = []; fetchInitialData(true);" style="background: var(--text-light);" title="Refresh Data">
                             <span class="material-symbols-outlined">refresh</span>
                         </button>
+                        <button onclick="document.getElementById('skuMasterCsvInput').click()" style="background: var(--primary);" title="Upload SKU Master">
+                            <span class="material-symbols-outlined">inventory</span>
+                        </button>
+                        <input type="file" id="skuMasterCsvInput" accept=".csv" style="display: none;" onchange="handleSkuMasterUpload(event)">
                     </div>
                 </div>
 
                 <!-- Quick Summary Dashboard -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
-                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid var(--primary);">
-                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Total Scans</small>
-                        <div id="excessSummaryTotal" style="font-size: 1.2rem; font-weight: 800;">0</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                    <div class="card" style="padding: 10px; text-align: center; border-top: 3px solid var(--primary);">
+                        <small id="excessSummaryTotalLabel" style="font-size: 0.55rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Total Scans</small>
+                        <div id="excessSummaryTotal" style="font-size: 1.3rem; font-weight: 800;">0</div>
                     </div>
-                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid var(--success);">
-                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Unique Scanners</small>
-                        <div id="excessSummaryUsers" style="font-size: 1.2rem; font-weight: 800;">0</div>
+                    <div class="card" style="padding: 10px; text-align: center; border-top: 3px solid var(--success);">
+                        <small style="font-size: 0.55rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Total Units</small>
+                        <div id="excessSummaryUnits" style="font-size: 1.3rem; font-weight: 800; color: var(--success);">0</div>
                     </div>
-                    <div class="card" style="padding: 12px; text-align: center; border-top: 3px solid #f97316;">
-                        <small style="font-size: 0.6rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Last Scan</small>
-                        <div id="excessSummaryLast" style="font-size: 0.75rem; font-weight: 700; margin-top: 4px;">--:--</div>
+                    <div class="card" style="padding: 10px; text-align: center; border-top: 3px solid #6366f1;">
+                        <small style="font-size: 0.55rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Unique Scanners</small>
+                        <div id="excessSummaryUsers" style="font-size: 1.3rem; font-weight: 800;">0</div>
+                    </div>
+                    <div class="card" style="padding: 10px; text-align: center; border-top: 3px solid #f97316;">
+                        <small style="font-size: 0.55rem; color: var(--text-light); text-transform: uppercase; font-weight: 800;">Last Activity</small>
+                        <div id="excessSummaryLast" style="font-size: 1rem; font-weight: 800; margin-top: 4px;">--:--</div>
                     </div>
                 </div>
 
                 <div id="excessScanForm" class="card" style="margin-bottom: 20px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <h3 style="grid-column: 1 / -1; font-size: 0.75rem; text-transform: uppercase; color: var(--primary); margin: 5px 0 5px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
+                            Logistics & Crew Requirement
+                            <div style="display: flex; gap: 8px;">
+                                <button id="lockLogisticsBtn" onclick="toggleExcessLock()" style="background:none; color:var(--primary); padding:0; height:auto; min-height:0; transform:none; border:none; box-shadow:none;" title="Lock/Unlock Requirements">
+                                    <span class="material-symbols-outlined">lock_open</span>
+                                </button>
+                                <button id="toggleLogisticsBtn" onclick="toggleExcessVisibility('logistics')" style="background:none; color:var(--primary); padding:0; height:auto; min-height:0; transform:none; border:none; box-shadow:none;">
+                                    <span class="material-symbols-outlined">expand_less</span>
+                                </button>
+                            </div>
+                        </h3>
+                        <div id="excessLogisticsFields" style="display: contents;">
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Remarks</label>
+                            <select id="excessRemarks" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white; font-weight: bold; color: var(--text);" onkeyup="if(event.key==='Enter') document.getElementById('excessDcInput').focus()">
+                                <option value="">SELECT REMARK</option>
+                                <option value="Damaged">Damaged</option>
+                                <option value="Excess">Excess</option>
+                                <option value="Near Expiry">Near Expiry</option>
+                                <option value="Addback">Addback</option>
+                                <option value="Stocks Transfer">Stocks Transfer</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Disposal">Disposal</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">DC Code</label>
+                            <select id="excessDcInput" onchange="state.activeDcCode = this.value; if(document.getElementById('excessDcFilter')) document.getElementById('excessDcFilter').value = this.value; render();" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white; font-weight: bold; color: var(--primary);">
+                                <option value="">SELECT DC</option>
+                                <option value="2367">DC 2367</option>
+                                <option value="7132">DC 7132</option>
+                            </select>
+                        </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Lead Scanner</label>
                             <select id="excessScannerInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;" onchange="localStorage.setItem('preferredScannerId', this.value)"></select>
@@ -1358,13 +1414,23 @@
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Assistant 1</label>
                             <select id="excessAssistant1Input" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
                         </div>
-                        <div style="grid-column: 1 / -1;">
+                        <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Assistant 2</label>
                             <select id="excessAssistant2Input" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;"></select>
                         </div>
+                        </div>
+                        <h3 style="grid-column: 1 / -1; font-size: 0.75rem; text-transform: uppercase; color: var(--primary); margin: 15px 0 5px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; letter-spacing: 0.05em;">Entry Details</h3>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Barcode</label>
-                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') document.getElementById('excessQty').focus()">
+                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') lookupSku(this.value)">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">SKU Code</label>
+                            <input type="text" id="excessSku" placeholder="Auto-filled" readonly style="width: 100%; box-sizing: border-box; margin-top: 4px; background: #f1f5f9;">
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Description</label>
+                            <input type="text" id="excessDesc" placeholder="Product description will appear here..." readonly style="width: 100%; box-sizing: border-box; margin-top: 4px; background: #f1f5f9;">
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Quantity</label>
@@ -1397,8 +1463,9 @@
                     <div id="excessLogView">
                         <div class="table-header">
                             <div style="flex: 1.2;">Time & Date</div>
-                            <div style="flex: 3;">Crew (Lead + Assistants)</div>
-                            <div style="flex: 1.5;">Barcode</div>
+                            <div style="flex: 0.8;">DC Code</div>
+                            <div style="flex: 2.2;">Crew (Lead + Assistants)</div>
+                            <div style="flex: 1.5;">Barcode / Remarks</div>
                             <div style="flex: 0.6; text-align: center;">Qty</div>
                             <div style="flex: 1.2;">Box # or Location</div>
                             <div style="flex: 1;">Pallet</div>
@@ -1789,7 +1856,10 @@
             scheduleView: 'table',
             excessFormVisible: true,
             excessTableVisible: true,
-            activeExcessSubTab: 'log'
+            excessLogisticsVisible: true,
+            excessLogisticsLocked: false,
+            activeExcessSubTab: 'log',
+            activeDcCode: ''
         };
 
         let state = {
@@ -2128,6 +2198,29 @@
             } 
         }
 
+        async function debugSupabaseSchema() {
+            if (!supabaseClient) return showToast("Supabase not connected", "error");
+            
+            toggleLoader(true);
+            // We try to select only the 'remarks' column. 
+            // If it doesn't exist, Postgres returns error 42703 (undefined_column).
+            const { data, error } = await supabaseClient
+                .from('excess_scans')
+                .select('remarks')
+                .limit(1);
+            
+            toggleLoader(false);
+
+            if (error && error.code === '42703') {
+                showToast("CRITICAL: 'remarks' column is MISSING in Supabase!", "error");
+                console.error("Schema Error: Table 'excess_scans' does not have a 'remarks' column.", error);
+            } else if (error) {
+                showToast("Connection Error: " + error.message, "error");
+            } else {
+                showToast("Success: 'remarks' column exists and is accessible.", "success");
+            }
+        }
+
         let renderTimeout;
         function debouncedRender() {
             if (renderTimeout) clearTimeout(renderTimeout);
@@ -2219,7 +2312,12 @@
                 activeHomeTab: state.activeHomeTab,
                 activeAttendanceSubTab: state.activeAttendanceSubTab,
                 activeProductivitySubTab: state.activeProductivitySubTab,
-                activeSummarySubTab: state.activeSummarySubTab
+                activeSummarySubTab: state.activeSummarySubTab,
+                activeDcCode: state.activeDcCode,
+                excessFormVisible: state.excessFormVisible,
+                excessTableVisible: state.excessTableVisible,
+                excessLogisticsVisible: state.excessLogisticsVisible,
+                excessLogisticsLocked: state.excessLogisticsLocked
             };
             localStorage.setItem('trackerUI', JSON.stringify(uiState));
             render();
@@ -2237,6 +2335,12 @@
         function toggleExcessVisibility(type) {
             if (type === 'form') state.excessFormVisible = !state.excessFormVisible;
             if (type === 'table') state.excessTableVisible = !state.excessTableVisible;
+            if (type === 'logistics') state.excessLogisticsVisible = !state.excessLogisticsVisible;
+            saveData();
+        }
+
+        function toggleExcessLock() {
+            state.excessLogisticsLocked = !state.excessLogisticsLocked;
             saveData();
         }
 
@@ -2282,6 +2386,67 @@
             document.getElementById('registerModal').classList.add('hidden');
         }
 
+        async function lookupSku(barcode) {
+            if (!barcode || !supabaseClient) return;
+            const val = barcode.trim();
+            
+            document.getElementById('excessSku').value = "Searching...";
+            document.getElementById('excessDesc').value = "Searching...";
+
+            const { data, error } = await supabaseClient
+                .from('sku_master')
+                .select('sku, description')
+                .eq('barcode', val)
+                .maybeSingle();
+
+            if (data) {
+                document.getElementById('excessSku').value = data.sku || '--';
+                document.getElementById('excessDesc').value = data.description || '--';
+                document.getElementById('excessQty').focus();
+            } else {
+                document.getElementById('excessSku').value = "NOT FOUND";
+                document.getElementById('excessDesc').value = "N/A - Item not in Master";
+                document.getElementById('excessQty').focus();
+            }
+        }
+
+        async function handleSkuMasterUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !supabaseClient) return;
+
+            toggleLoader(true);
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const payloads = [];
+                    
+                    // Expects CSV: barcode, sku, description
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                        if (parts.length >= 2) {
+                            payloads.push({ 
+                                barcode: parts[0], 
+                                sku: parts[1], 
+                                description: parts[2] || '--' 
+                            });
+                        }
+                    }
+
+                    if (payloads.length > 0) {
+                        const { error } = await supabaseClient.from('sku_master').upsert(payloads, { onConflict: 'barcode' });
+                        if (error) throw error;
+                        showToast(`Uploaded ${payloads.length} SKU records.`, "success");
+                    } else { showToast("No valid data found.", "error"); }
+                } catch (err) { showToast("Upload failed: " + err.message, "error"); }
+                finally { toggleLoader(false); event.target.value = ''; }
+            };
+            reader.readAsText(file);
+        }
+
         // Attendance Logic
         async function saveMember() {
             const idInput = document.getElementById('memberIdInput');
@@ -2322,10 +2487,35 @@
         }
 
         async function addExcessScan() {
+            if (!state.activeDcCode) {
+                showToast("Please select a DC Code before scanning!", "error");
+                const dcFilter = document.getElementById('excessDcFilter');
+                if (dcFilter) {
+                    dcFilter.focus();
+                    dcFilter.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.4)';
+                    setTimeout(() => dcFilter.style.boxShadow = 'none', 3000);
+                }
+                return;
+            }
+
+            const remarks = document.getElementById('excessRemarks').value;
+            if (!remarks) {
+                showToast("Please select a Remark before scanning!", "error");
+                const remarksEl = document.getElementById('excessRemarks');
+                if (remarksEl) {
+                    remarksEl.focus();
+                    remarksEl.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.4)';
+                    setTimeout(() => remarksEl.style.boxShadow = 'none', 3000);
+                }
+                return;
+            }
+
             const scannerId = document.getElementById('excessScannerInput').value;
             const asst1Id = document.getElementById('excessAssistant1Input').value;
             const asst2Id = document.getElementById('excessAssistant2Input').value;
             const barcode = document.getElementById('excessBarcode').value;
+            const sku = document.getElementById('excessSku').value;
+            const description = document.getElementById('excessDesc').value;
             const qty = document.getElementById('excessQty').value;
             const box = document.getElementById('excessBox').value;
             const pallet = document.getElementById('excessPallet').value;
@@ -2355,9 +2545,13 @@
                 assistant2Name: asst2 ? asst2.name : '--',
                 assistant2Id: asst2Id || '--',
                 barcode: barcode,
+                sku: (sku === "NOT FOUND" || sku === "Searching...") ? "--" : sku,
+                description: (description === "Searching...") ? "--" : description,
                 qty: parseInt(qty),
                 box: box || '--',
                 pallet: pallet || '--',
+                remarks: remarks || '--',
+                dcCode: state.activeDcCode || '--',
                 timestamp: new Date().toISOString()
             };
 
@@ -2375,6 +2569,8 @@
             state.editingExcessId = null;
 
             showToast("Excess entry saved!", "success");
+            state.excessLogisticsVisible = false;
+            saveData();
             document.getElementById('excessBarcode').value = '';
             document.getElementById('excessQty').value = '';
             document.getElementById('excessBox').value = '';
@@ -2412,9 +2608,13 @@
             document.getElementById('excessAssistant1Input').value = scan.assistant1Id === '--' ? '' : scan.assistant1Id;
             document.getElementById('excessAssistant2Input').value = scan.assistant2Id === '--' ? '' : scan.assistant2Id;
             document.getElementById('excessBarcode').value = scan.barcode;
+            document.getElementById('excessSku').value = scan.sku || '';
+            document.getElementById('excessDesc').value = scan.description || '';
             document.getElementById('excessQty').value = scan.qty;
             document.getElementById('excessBox').value = scan.box === '--' ? '' : scan.box;
             document.getElementById('excessPallet').value = scan.pallet === '--' ? '' : scan.pallet;
+            document.getElementById('excessRemarks').value = scan.remarks === '--' ? '' : scan.remarks;
+            document.getElementById('excessDcInput').value = scan.dcCode || '';
             document.getElementById('excessBarcode').focus();
             showToast("Editing entry...", "info");
         }
@@ -2454,6 +2654,7 @@
             
             let filteredData = [...state.excessScans];
 
+            if (state.activeDcCode) filteredData = filteredData.filter(s => s.dcCode === state.activeDcCode);
             if (dateFilter) {
                 // If date is set, check if user wants a full export for that day vs current filtered view
                 const isFiltered = boxFilter || genSearch;
@@ -2469,7 +2670,8 @@
                         (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
                         (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
                         (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
-                        (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+                        (s.box && s.box.toString().toLowerCase().includes(genSearch)) ||
+                        (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
                 }
             } else {
                 if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
@@ -2478,7 +2680,8 @@
                     (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
                     (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
                     (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
-                    (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+                    (s.box && s.box.toString().toLowerCase().includes(genSearch)) ||
+                    (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
             }
 
             if (filteredData.length === 0) return showToast("No records found matching these filters!", "error");
@@ -2486,9 +2689,8 @@
             toggleLoader(true);
             setTimeout(() => {
                 try {
-                    
-                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "Qty", "Box Number", "Pallet Ref"];
-                    const csvRows = [headers.join(",")];
+                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "Remarks", "Qty", "Box Number", "Pallet Ref", "DC Code"];
+                    const csvRows = [headers.join(',')];
                     filteredData.forEach(s => {
                         const row = [
                             new Date(s.timestamp).toLocaleString(),
@@ -2499,10 +2701,12 @@
                             s.assistant2Name || '--',
                             s.assistant2Id || '--',
                             s.barcode,
+                            s.remarks || '--',
                             s.qty,
                             s.box,
-                            s.pallet
-                        ];
+                            s.pallet,
+                            s.dcCode || '--'
+                        ]; // Ensure 'remarks' is already part of the 's' object
                         csvRows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
                     });
                     downloadFile(csvRows.join("\n"), `Excess_Smart_Export_${new Date().toISOString().slice(0,10)}.csv`);
@@ -2520,6 +2724,7 @@
             
             let filteredData = [...state.excessScans];
 
+            if (state.activeDcCode) filteredData = filteredData.filter(s => s.dcCode === state.activeDcCode);
             if (dateFilter) {
                 const filterISO = toLocalISO(dateFilter);
                 filteredData = filteredData.filter(s => toLocalISO(s.timestamp) === filterISO);
@@ -2531,7 +2736,8 @@
                 (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
                 (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
                 (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
-                (s.box && s.box.toString().toLowerCase().includes(genSearch)));
+                (s.box && s.box.toString().toLowerCase().includes(genSearch)) ||
+                (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
 
             if (filteredData.length === 0) return showToast("No records found matching current filters to clear.", "error");
             if (!confirm(`Are you sure you want to PERMANENTLY DELETE ${filteredData.length} filtered records from the database? This action cannot be undone.`)) return;
@@ -3672,6 +3878,14 @@
             if (formBtn) formBtn.innerHTML = `<span class="material-symbols-outlined">${state.excessFormVisible ? 'visibility' : 'visibility_off'}</span>`;
             if (tableBtn) tableBtn.innerHTML = `<span class="material-symbols-outlined">${state.excessTableVisible ? 'visibility' : 'visibility_off'}</span>`;
 
+            const logFields = document.getElementById('excessLogisticsFields');
+            const logToggleBtn = document.getElementById('toggleLogisticsBtn');
+            if (logFields) logFields.style.display = state.excessLogisticsVisible ? 'contents' : 'none';
+            if (logToggleBtn) logToggleBtn.innerHTML = `<span class="material-symbols-outlined">${state.excessLogisticsVisible ? 'expand_less' : 'expand_more'}</span>`;
+
+            const lockBtn = document.getElementById('lockLogisticsBtn');
+            if (lockBtn) lockBtn.innerHTML = `<span class="material-symbols-outlined">${state.excessLogisticsLocked ? 'lock' : 'lock_open'}</span>`;
+
             const attendanceList = document.getElementById('attendanceList');
             const historyList = document.getElementById('historyList');
             const registerList = document.getElementById('registerList');
@@ -3805,17 +4019,21 @@
             const dateFilterVal = document.getElementById('excessFilterDate')?.value || '';
             const filterISOVal = dateFilterVal ? toLocalISO(dateFilterVal) : null;
             const genSearchVal = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
+            const remarkFilterVal = document.getElementById('excessRemarkFilter')?.value || '';
 
             const filteredExcess = state.excessScans.filter(s => {
+                const matchesDc = !state.activeDcCode || s.dcCode === state.activeDcCode;
                 const matchesBox = !boxSearchVal || (s.box && s.box.toString().toLowerCase().includes(boxSearchVal));
                 const matchesDate = !filterISOVal || (toLocalISO(s.timestamp) === filterISOVal);
+                const matchesRemark = !remarkFilterVal || s.remarks === remarkFilterVal;
                 const matchesGen = !genSearchVal || 
                     (s.barcode && s.barcode.toLowerCase().includes(genSearchVal)) || 
                     (s.scannerName && s.scannerName.toLowerCase().includes(genSearchVal)) || 
                     (s.scannerId && s.scannerId.toLowerCase().includes(genSearchVal)) || 
                     (s.pallet && s.pallet.toLowerCase().includes(genSearchVal)) || 
-                    (s.box && s.box.toString().toLowerCase().includes(genSearchVal));
-                return matchesBox && matchesDate && matchesGen;
+                    (s.box && s.box.toString().toLowerCase().includes(genSearchVal)) ||
+                    (s.remarks && s.remarks.toLowerCase().includes(genSearchVal));
+                return matchesBox && matchesDate && matchesGen && matchesDc && matchesRemark;
             });
 
             // Excess Scan Summary per Scanner population (Dashboard Tab)
@@ -4073,7 +4291,7 @@
                 if (el && state.members.length > 0) {
                     let currentVal = el.value;
                     const options = state.members
-                    .filter(m => m.role !== 'Back up')
+                    .filter(m => m.role === 'Scanner')
                     .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
                     
                     el.innerHTML = `<option value="" ${id !== 'excessScannerInput' ? 'selected' : 'disabled'}>${id === 'excessScannerInput' ? 'Select Lead...' : 'None'}</option>` + options;
@@ -4081,6 +4299,30 @@
                     else if (id === 'excessScannerInput' && localStorage.getItem('preferredScannerId')) el.value = localStorage.getItem('preferredScannerId');
                 }
             });
+            if (document.getElementById('excessDcInput')) document.getElementById('excessDcInput').value = state.activeDcCode || '';
+
+            // Logistics Locking: Disables Remarks, DC, and Crew if Locked
+            const logisticsIds = ['excessRemarks', 'excessDcInput', 'excessScannerInput', 'excessAssistant1Input', 'excessAssistant2Input'];
+            logisticsIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = state.excessLogisticsLocked;
+                    el.style.opacity = state.excessLogisticsLocked ? '0.8' : '1';
+                }
+            });
+
+            // Entry Validation: Disables Barcode entry if DC or Remarks are missing
+            const isEntryDisabled = !state.activeDcCode || !document.getElementById('excessRemarks')?.value;
+            ['excessBarcode', 'excessQty', 'excessBox', 'excessPallet'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = isEntryDisabled;
+                    el.style.opacity = isEntryDisabled ? '0.5' : '1';
+                    el.style.transition = 'opacity 0.2s';
+                }
+            });
+            const boxBtn = document.querySelector('button[onclick="generateBoxNumber()"]');
+            if (boxBtn) { boxBtn.disabled = isEntryDisabled; boxBtn.style.opacity = isEntryDisabled ? '0.5' : '1'; }
 
             // Render Excess Scan List
             const excessScanList = document.getElementById('excessScanList');
@@ -4100,11 +4342,15 @@
                             <span style="font-weight: 800; color: var(--text); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             <span style="font-size: 0.6rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleDateString([], {day:'2-digit', month:'short', year:'2-digit'})}</span>
                         </div>
-                        <div style="flex: 3; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;" title="${leadLine}${assistLine ? ' | ' + assistLine : ''}">
+                        <div style="flex: 0.8; font-weight: 800; color: var(--primary);">${s.dcCode || '--'}</div>
+                        <div style="flex: 2.2; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;" title="${leadLine}${assistLine ? ' | ' + assistLine : ''}">
                             <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.85rem; font-weight: 600;">${highlightMatch(leadLine, genSearchVal)}</div>
                             ${assistLine ? `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.7rem; color: var(--text-light);">${highlightMatch(assistLine, genSearchVal)}</div>` : ''}
                         </div>
-                        <div style="flex: 1.5; font-weight: 700;" title="${s.barcode}">${highlightMatch(s.barcode, genSearchVal)}</div>
+                        <div style="flex: 1.5; flex-direction: column; align-items: flex-start; line-height: 1.1; overflow: hidden;" title="${s.barcode}">
+                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-weight: 700;">${highlightMatch(s.barcode, genSearchVal)}</div>
+                            ${s.remarks && s.remarks !== '--' ? `<div style="font-size: 0.6rem; color: var(--primary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;" title="${s.remarks}">${highlightMatch(s.remarks, genSearchVal)}</div>` : ''}
+                        </div>
                         <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
                         <div style="flex: 1.2;" title="${s.box}">${highlightMatch(s.box, genSearchVal || boxSearchVal)}</div>
                         <div style="flex: 1;" title="${s.pallet}">${highlightMatch(s.pallet, genSearchVal)}</div>
@@ -4126,12 +4372,25 @@
                 }
 
                 if (document.getElementById('excessSummaryTotal')) {
-                    document.getElementById('excessSummaryTotal').innerText = filteredExcess.length;
+                    const totalScans = filteredExcess.length;
+                    const totalUnits = filteredExcess.reduce((acc, curr) => acc + (parseInt(curr.qty) || 0), 0);
+                    const uniqueScanners = new Set(filteredExcess.map(s => s.scannerId)).size;
+                    const lastScan = filteredExcess[0];
+
+                    document.getElementById('excessSummaryTotal').innerText = totalScans;
+                    if (document.getElementById('excessSummaryUnits')) {
+                        document.getElementById('excessSummaryUnits').innerText = totalUnits;
+                    }
+                    
+                    const labelEl = document.getElementById('excessSummaryTotalLabel');
+                    if (labelEl) {
+                        labelEl.innerText = remarkFilterVal ? `${remarkFilterVal} Scans` : 'Total Scans';
+                    }
+
                     // Note: excessSummaryUsers is now handled in the Dashboard Summary block above for consistency
                     if (activeSummarySubTab !== 'excess') {
-                        document.getElementById('excessSummaryUsers').innerText = new Set(filteredExcess.map(s => s.scannerId)).size;
+                        document.getElementById('excessSummaryUsers').innerText = uniqueScanners;
                     }
-                    const lastScan = filteredExcess[0];
                     document.getElementById('excessSummaryLast').innerText = lastScan ? new Date(lastScan.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--';
                 }
             }
@@ -4719,6 +4978,8 @@
         switchProductivitySubTab(state.activeProductivitySubTab || 'active');
         switchSummarySubTab(state.activeSummarySubTab || 'shift');
 
+        if (document.getElementById('excessDcFilter')) document.getElementById('excessDcFilter').value = state.activeDcCode || '';
+
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
@@ -4729,4 +4990,5 @@
         }
     </script>
 </body>
+</html>
 </html>
