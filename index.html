@@ -2205,22 +2205,28 @@
             if (!supabaseClient) return showToast("Supabase not connected", "error");
             
             toggleLoader(true);
-            // We try to select only the 'remarks' column. 
-            // If it doesn't exist, Postgres returns error 42703 (undefined_column).
-            const { data, error } = await supabaseClient
-                .from('excess_scans')
-                .select('remarks')
-                .limit(1);
-            
-            toggleLoader(false);
+            try {
+                // Check excess_scans for core logging columns
+                const { error: eError } = await supabaseClient.from('excess_scans').select('remarks, sku, description').limit(1);
+                if (eError && eError.code === '42703') {
+                    showToast("Schema Error: 'excess_scans' is missing 'remarks', 'sku', or 'description' columns.", "error");
+                    console.error("excess_scans check failed:", eError);
+                }
 
-            if (error && error.code === '42703') {
-                showToast("CRITICAL: 'remarks' column is MISSING in Supabase!", "error");
-                console.error("Schema Error: Table 'excess_scans' does not have a 'remarks' column.", error);
-            } else if (error) {
+                // Check sku_master for lookup columns
+                const { error: sError } = await supabaseClient.from('sku_master').select('sku, description').limit(1);
+                if (sError && sError.code === '42703') {
+                    showToast("Schema Error: 'sku_master' is missing 'sku' or 'description' columns.", "error");
+                    console.error("sku_master check failed:", sError);
+                }
+
+                if (!eError && !sError) {
+                    showToast("Success: All required columns for scanning exist in Supabase.", "success");
+                }
+            } catch (error) {
                 showToast("Connection Error: " + error.message, "error");
-            } else {
-                showToast("Success: 'remarks' column exists and is accessible.", "success");
+            } finally {
+                toggleLoader(false);
             }
         }
 
@@ -2402,6 +2408,14 @@
                 .eq('barcode', val)
                 .maybeSingle();
 
+            if (error) {
+                console.error("Lookup Error:", error);
+                showToast("Database Error: " + error.message, "error");
+                document.getElementById('excessSku').value = "DB ERROR";
+                document.getElementById('excessDesc').value = "Check console for details";
+                return;
+            }
+
             if (data) {
                 document.getElementById('excessSku').value = data.sku || '--';
                 document.getElementById('excessDesc').value = data.description || '--';
@@ -2575,7 +2589,15 @@
             }
 
             toggleLoader(false);
-            if (result.error) return showToast(result.error.message, "error");
+            if (result.error) {
+                if (result.error.code === '42703') {
+                    showToast("Schema Error: Missing columns in Supabase 'excess_scans' table.", "error");
+                    console.error("Missing columns detected. Please run the SQL migration script.", result.error.message);
+                } else {
+                    showToast("Save Error: " + result.error.message, "error");
+                }
+                return;
+            }
             state.editingExcessId = null;
 
             showToast("Excess entry saved!", "success");
