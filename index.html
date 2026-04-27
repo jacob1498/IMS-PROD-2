@@ -42,7 +42,7 @@
         }
 
         .container {
-            max-width: 950px;
+            max-width: 1300px;
             margin: 0 auto;
             display: block;
         }
@@ -842,6 +842,29 @@
         }
 
         .skeleton-card { height: 120px; width: 100%; }
+
+        /* Excess Scan Side-by-Side Layout */
+        .excess-layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (min-width: 1024px) {
+            .excess-layout-wrapper {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .excess-form-container {
+                flex: 0 0 30%;
+                position: sticky;
+                top: 110px; /* Aligns with sticky table header */
+            }
+            .excess-table-container {
+                flex: 0 0 calc(70% - 20px);
+                min-width: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1371,6 +1394,8 @@
                     </div>
                 </div>
 
+                <div class="excess-layout-wrapper">
+                    <div class="excess-form-container">
                 <div id="excessScanForm" class="card" style="margin-bottom: 20px;">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <h3 style="grid-column: 1 / -1; font-size: 0.75rem; text-transform: uppercase; color: var(--primary); margin: 5px 0 5px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
@@ -1449,6 +1474,8 @@
                         </div>
                     </div>
                 </div>
+                    </div>
+                    <div class="excess-table-container">
 
                 <div class="card" style="padding: 0; overflow: visible;">
                     <div class="tab-group" style="padding: 10px; margin-bottom: 0; border-bottom: 1px solid var(--border); background: #f8fafc;">
@@ -1486,6 +1513,8 @@
                             <div style="flex: 1.2; text-align: right; padding-right: 10px; border-right: none;">Last Active</div>
                         </div>
                         <ul id="excessScannerSummaryList"></ul>
+                    </div>
+                </div>
                     </div>
                 </div>
             </div>
