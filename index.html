@@ -526,12 +526,11 @@
             
             /* Fixed & Stable Scan Excess Form on Mobile */
             /* Hide Scan Excess Form on Mobile for Footer Stability */
-            #excessScanForm { 
+            #excessScanForm {
                 display: block !important; 
                 margin-bottom: 20px; 
                 padding: 16px !important; 
-                border-top: 4px solid var(--primary); 
-                display: none !important; 
+                border-top: 4px solid var(--primary);
             }
             #excessScanForm > div { grid-template-columns: 1fr !important; gap: 10px !important; }
             #excessScanForm input, #excessScanForm select { font-size: 16px !important; }
@@ -856,12 +855,12 @@
                 align-items: flex-start;
             }
             .excess-form-container {
-                flex: 0 0 30%;
+                flex: 0 0 25%; /* Adjusted to give more space to the table */
                 position: sticky;
                 top: 110px; /* Aligns with sticky table header */
             }
             .excess-table-container {
-                flex: 0 0 calc(70% - 20px);
+                flex: 0 0 calc(75% - 20px); /* Adjusted to take 75% of the width */
                 min-width: 0;
             }
         }
