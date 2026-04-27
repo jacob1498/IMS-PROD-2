@@ -1462,12 +1462,15 @@
 
                     <div id="excessLogView">
                         <div class="table-header">
-                            <div style="flex: 1.2;">Time & Date</div>
-                            <div style="flex: 0.8;">DC Code</div>
-                            <div style="flex: 2.2;">Crew (Lead + Assistants)</div>
-                            <div style="flex: 1.5;">Barcode / Remarks</div>
-                            <div style="flex: 0.6; text-align: center;">Qty</div>
-                            <div style="flex: 1.2;">Box # or Location</div>
+                            <div style="flex: 1.1;">Time & Date</div>
+                            <div style="flex: 0.6;">DC</div>
+                            <div style="flex: 2;">Crew (Lead + Assts)</div>
+                            <div style="flex: 1.2;">Barcode</div>
+                            <div style="flex: 1;">SKU</div>
+                            <div style="flex: 2;">Description</div>
+                            <div style="flex: 1;">Remarks</div>
+                            <div style="flex: 0.5; text-align: center;">Qty</div>
+                            <div style="flex: 1.1;">Box #</div>
                             <div style="flex: 1;">Pallet</div>
                             <div style="width: 70px; text-align: right; padding-right: 5px; border-right: none;">Action</div>
                         </div>
@@ -2696,7 +2699,7 @@
             toggleLoader(true);
             setTimeout(() => {
                 try {
-                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "Remarks", "Qty", "Box Number", "Pallet Ref", "DC Code"];
+                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "SKU", "Description", "Remarks", "Qty", "Box Number", "Pallet Ref", "DC Code"];
                     const csvRows = [headers.join(',')];
                     filteredData.forEach(s => {
                         const row = [
@@ -2708,6 +2711,8 @@
                             s.assistant2Name || '--',
                             s.assistant2Id || '--',
                             s.barcode,
+                            s.sku || '--',
+                            s.description || '--',
                             s.remarks || '--',
                             s.qty,
                             s.box,
@@ -4348,21 +4353,21 @@
                         const assistLine = asstArr.length > 0 ? `Assist: ${asstArr.join(' / ')}` : '';
                         return `
                     <li class="schedule-row">
-                        <div style="flex: 1.2; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.1; gap: 2px; overflow: hidden;">
+                        <div style="flex: 1.1; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.1; gap: 2px; overflow: hidden;">
                             <span style="font-weight: 800; color: var(--text); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             <span style="font-size: 0.6rem; color: var(--text-light); font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;">${new Date(s.timestamp).toLocaleDateString([], {day:'2-digit', month:'short', year:'2-digit'})}</span>
                         </div>
-                        <div style="flex: 0.8; font-weight: 800; color: var(--primary);">${s.dcCode || '--'}</div>
-                        <div style="flex: 2.2; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;" title="${leadLine}${assistLine ? ' | ' + assistLine : ''}">
-                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.85rem; font-weight: 600;">${highlightMatch(leadLine, genSearchVal)}</div>
-                            ${assistLine ? `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.7rem; color: var(--text-light);">${highlightMatch(assistLine, genSearchVal)}</div>` : ''}
+                        <div style="flex: 0.6; font-weight: 800; color: var(--primary);">${s.dcCode || '--'}</div>
+                        <div style="flex: 2; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; overflow: hidden;" title="${leadLine}${assistLine ? ' | ' + assistLine : ''}">
+                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.8rem; font-weight: 600;">${highlightMatch(leadLine, genSearchVal)}</div>
+                            ${assistLine ? `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-size: 0.65rem; color: var(--text-light);">${highlightMatch(assistLine, genSearchVal)}</div>` : ''}
                         </div>
-                        <div style="flex: 1.5; flex-direction: column; align-items: flex-start; line-height: 1.1; overflow: hidden;" title="${s.barcode}">
-                            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; font-weight: 700;">${highlightMatch(s.barcode, genSearchVal)}</div>
-                            ${s.remarks && s.remarks !== '--' ? `<div style="font-size: 0.6rem; color: var(--primary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;" title="${s.remarks}">${highlightMatch(s.remarks, genSearchVal)}</div>` : ''}
-                        </div>
-                        <div style="flex: 0.6; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
-                        <div style="flex: 1.2;" title="${s.box}">${highlightMatch(s.box, genSearchVal || boxSearchVal)}</div>
+                        <div style="flex: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${highlightMatch(s.barcode, genSearchVal)}</div>
+                        <div style="flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${highlightMatch(s.sku || '--', genSearchVal)}</div>
+                        <div style="flex: 2; font-size: 0.75rem; white-space: normal; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${s.description || '--'}">${highlightMatch(s.description || '--', genSearchVal)}</div>
+                        <div style="flex: 1; font-size: 0.7rem; color: var(--primary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${s.remarks || '--'}">${highlightMatch(s.remarks || '--', genSearchVal)}</div>
+                        <div style="flex: 0.5; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
+                        <div style="flex: 1.1;" title="${s.box}">${highlightMatch(s.box, genSearchVal || boxSearchVal)}</div>
                         <div style="flex: 1;" title="${s.pallet}">${highlightMatch(s.pallet, genSearchVal)}</div>
                         <div style="width: 70px; text-align: right; display:flex; gap:4px; justify-content:flex-end; padding-right:5px">
                             <button class="btn-action-sm" onclick="editExcessScan(${s.id})"><span class="material-symbols-outlined" style="font-size:14px">edit</span></button>
