@@ -1501,6 +1501,23 @@
                             <div style="width: 70px; text-align: right; padding-right: 5px; border-right: none;">Action</div>
                         </div>
                         <ul id="excessScanList" style="overflow: visible;"></ul>
+                        <div id="excessPaginationControls" style="padding: 15px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: #f8fafc;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-light);">Rows per page:</span>
+                                <select id="excessRowsPerPageSelect" onchange="changeExcessRowsPerPage(this.value)" style="padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.75rem; background: white; cursor: pointer;">
+                                    <option value="10">10</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <span id="excessPageInfo" style="font-size: 0.75rem; font-weight: 700; color: var(--text-light);">Page 1 of 1</span>
+                                <div style="display: flex; gap: 5px;">
+                                    <button id="excessPrevBtn" onclick="changeExcessPage(-1)" style="padding: 4px 8px; background: white; color: var(--text); border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center;"><span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span></button>
+                                    <button id="excessNextBtn" onclick="changeExcessPage(1)" style="padding: 4px 8px; background: white; color: var(--text); border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center;"><span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="excessSummaryView" class="hidden">
@@ -1890,7 +1907,9 @@
             excessLogisticsVisible: true,
             excessLogisticsLocked: false,
             activeExcessSubTab: 'log',
-            activeDcCode: ''
+            activeDcCode: '',
+            excessPage: 1,
+            excessRowsPerPage: 10
         };
 
         let state = {
@@ -2354,7 +2373,9 @@
                 excessFormVisible: state.excessFormVisible,
                 excessTableVisible: state.excessTableVisible,
                 excessLogisticsVisible: state.excessLogisticsVisible,
-                excessLogisticsLocked: state.excessLogisticsLocked
+                excessLogisticsLocked: state.excessLogisticsLocked,
+                excessPage: state.excessPage,
+                excessRowsPerPage: state.excessRowsPerPage
             };
             localStorage.setItem('trackerUI', JSON.stringify(uiState));
             render();
@@ -2686,6 +2707,17 @@
             toggleLoader(false);
             if (error) showToast(error.message, "error");
             else showToast("Entry deleted", "info");
+        }
+
+        function changeExcessPage(delta) {
+            state.excessPage += delta;
+            saveData();
+        }
+
+        function changeExcessRowsPerPage(val) {
+            state.excessRowsPerPage = parseInt(val);
+            state.excessPage = 1;
+            saveData();
         }
 
         function exportMembersToExcel() {
@@ -4391,10 +4423,18 @@
 
             // Render Excess Scan List
             const excessScanList = document.getElementById('excessScanList');
-            const excessLimit = displayLimits.excess;
 
             if (excessScanList) {
-                excessScanList.innerHTML = filteredExcess.slice(0, excessLimit).map(s => `
+                const totalItems = filteredExcess.length;
+                const totalPages = Math.max(1, Math.ceil(totalItems / state.excessRowsPerPage));
+                
+                if (state.excessPage < 1) state.excessPage = 1;
+                if (state.excessPage > totalPages) state.excessPage = totalPages;
+
+                const start = (state.excessPage - 1) * state.excessRowsPerPage;
+                const paginatedItems = filteredExcess.slice(start, start + state.excessRowsPerPage);
+
+                excessScanList.innerHTML = paginatedItems.map(s => `
                     ${(() => {
                         const leadLine = `Lead: ${s.scannerName || 'Unknown'} (${s.scannerId || ''})`;
                         const asstArr = [];
@@ -4427,14 +4467,17 @@
                     `})()}
                 `).join('') || '<div class="empty-state">No excess items logged yet.</div>';
 
-                if (filteredExcess.length > excessLimit) {
-                    excessScanList.innerHTML += `
-                    <div style="padding: 15px; text-align: center;">
-                        <button onclick="loadMore('excess')" style="width: 100%; background: var(--bg); color: var(--primary); border: 1px solid var(--border); padding: 10px; font-size: 0.85rem; font-weight: 600;">
-                            Load More (${filteredExcess.length - excessLimit} remaining)
-                        </button>
-                    </div>`;
-                }
+                // Update Pagination Controls
+                const pageInfo = document.getElementById('excessPageInfo');
+                if (pageInfo) pageInfo.innerText = `Page ${state.excessPage} of ${totalPages} (${totalItems} total)`;
+                
+                const prevBtn = document.getElementById('excessPrevBtn');
+                const nextBtn = document.getElementById('excessNextBtn');
+                if (prevBtn) prevBtn.disabled = state.excessPage <= 1;
+                if (nextBtn) nextBtn.disabled = state.excessPage >= totalPages;
+                
+                const rowsSelect = document.getElementById('excessRowsPerPageSelect');
+                if (rowsSelect) rowsSelect.value = state.excessRowsPerPage;
 
                 if (document.getElementById('excessSummaryTotal')) {
                     const totalScans = filteredExcess.length;
