@@ -2426,7 +2426,8 @@
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
-                        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                        // Regex to handle commas inside quotes
+                        const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
                         if (parts.length >= 2) {
                             payloads.push({ 
                                 barcode: parts[0], 
