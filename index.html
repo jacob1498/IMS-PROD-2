@@ -2426,8 +2426,8 @@
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
-                        // Regex to handle commas inside quotes
-                        const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                        // Robust CSV split: ignore commas inside quotes and preserve empty fields
+                        const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
                         if (parts.length >= 2) {
                             payloads.push({ 
                                 barcode: parts[0], 
@@ -2437,10 +2437,16 @@
                         }
                     }
 
-                    if (payloads.length > 0) {
-                        const { error } = await supabaseClient.from('sku_master').upsert(payloads, { onConflict: 'barcode' });
+                    // Deduplicate payloads by barcode to prevent PostgreSQL "ON CONFLICT" errors
+                    // This ensures each barcode is only sent once per batch
+                    const deduplicated = Array.from(
+                        payloads.reduce((map, item) => map.set(item.barcode, item), new Map()).values()
+                    );
+
+                    if (deduplicated.length > 0) {
+                        const { error } = await supabaseClient.from('sku_master').upsert(deduplicated, { onConflict: 'barcode' });
                         if (error) throw error;
-                        showToast(`Uploaded ${payloads.length} SKU records.`, "success");
+                        showToast(`Uploaded ${deduplicated.length} SKU records.`, "success");
                     } else { showToast("No valid data found.", "error"); }
                 } catch (err) { showToast("Upload failed: " + err.message, "error"); }
                 finally { toggleLoader(false); event.target.value = ''; }
@@ -2775,7 +2781,8 @@
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
-                        const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                        // Robust CSV split: ignore commas inside quotes and preserve empty fields
+                        const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
                         if (parts.length >= 3) {
                             const [userid, name, role] = parts;
                             if (!userid || !name || !role) { invalid++; continue; }
@@ -3271,12 +3278,14 @@
                     
                     if (pendingUploadType === 'schedule') {
                         for (let i = 1; i < lines.length; i++) {
-                            const parts = lines[i].split(',').map(p => p.trim());
+                            // Robust CSV split: ignore commas inside quotes and preserve empty fields
+                            const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
                             if (parts.length >= 5) payloads.push({ date: parts[0], area: parts[1], shift: parts[2], time: parts[3], hc: parseInt(parts[4]) || 0 });
                         }
                     } else {
                         for (let i = 1; i < lines.length; i++) {
-                            const parts = lines[i].split(',').map(p => p.trim());
+                            // Robust CSV split: ignore commas inside quotes and preserve empty fields
+                            const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(p => p.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
                             if (parts.length >= 3) payloads.push({ aisle: parts[0], area: parts[1], location: parts[2] });
                         }
                     }
