@@ -676,15 +676,27 @@
         }
         .toast {
             padding: 12px 20px;
+            padding: 20px 40px;
             background: white;
             border-radius: 8px;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
             border-left: 4px solid var(--primary);
             display: flex;
             align-items: center;
             gap: 10px;
             font-size: 0.9rem;
             font-weight: 600;
+            min-height: 75px;
+            min-width: 130px;
+            gap: 15px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            min-height: 100px;
+            min-width: 300px;
+            justify-content: center;
+            text-align: center;
             animation: toastIn 0.3s ease forwards, toastOut 0.3s ease 2.7s forwards;
         }
         .toast.success { border-left-color: var(--success); }
@@ -1435,7 +1447,7 @@
                         <div id="excessLogisticsFields" style="display: contents;">
                         <div style="grid-column: 1 / -1;">
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Remarks</label>
-                            <select id="excessRemarks" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white; font-weight: bold; color: var(--text);" onkeyup="if(event.key==='Enter') document.getElementById('excessDcInput').focus()">
+                            <select id="excessRemarks" onchange="render()" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white; font-weight: bold; color: var(--text);" onkeyup="if(event.key==='Enter') document.getElementById('excessDcInput').focus()">
                                 <option value="">SELECT REMARK</option>
                                 <option value="Damaged">Damaged</option>
                                 <option value="Excess">Excess</option>
@@ -1456,6 +1468,7 @@
                         </div>
                         <div style="grid-column: 1 / -1;">
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Lead Scanner</label>
+                            <input type="text" id="excessScannerSearch" placeholder="Search lead scanner..." style="width: 100%; box-sizing: border-box; margin-top: 4px; margin-bottom: 8px;" oninput="render()">
                             <select id="excessScannerInput" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; background: white;" onchange="localStorage.setItem('preferredScannerId', this.value)"></select>
                         </div>
                         <div style="grid-column: 1 / -1;">
@@ -1470,7 +1483,7 @@
                         <h3 style="grid-column: 1 / -1; font-size: 0.75rem; text-transform: uppercase; color: var(--primary); margin: 15px 0 5px 0; border-bottom: 1px solid var(--border); padding-bottom: 8px; letter-spacing: 0.05em;">Entry Details</h3>
                         <div style="grid-column: 1 / -1;">
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Barcode</label>
-                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') lookupSku(this.value)">
+                            <input type="text" id="excessBarcode" placeholder="Scan Barcode" autocomplete="off" maxlength="15" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') lookupSku(this.value)">
                         </div>
                         <div style="grid-column: 1 / -1;">
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">SKU Code</label>
@@ -1480,6 +1493,10 @@
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Description</label>
                             <input type="text" id="excessDesc" placeholder="Product description will appear here..." readonly style="width: 100%; box-sizing: border-box; margin-top: 4px; background: #f1f5f9;">
                         </div>
+                        <div style="grid-column: 1 / -1;">
+                            <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">SKU Classification</label>
+                            <input type="text" id="excessClass" placeholder="Auto-filled (Class A/B/C)" readonly style="width: 100%; box-sizing: border-box; margin-top: 4px; background: #f1f5f9;">
+                        </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Quantity</label>
                             <input type="number" id="excessQty" placeholder="0" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') document.getElementById('excessBox').focus()">
@@ -1487,13 +1504,12 @@
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Box Number</label>
                             <div style="display: flex; gap: 4px; margin-top: 4px;">
-                                <input type="text" id="excessBox" placeholder="Ex-..." style="flex: 1; box-sizing: border-box;" onkeyup="if(event.key==='Enter') document.getElementById('excessPallet').focus()">
-                                <button onclick="generateBoxNumber()" style="padding: 0 8px; background: var(--bg); color: var(--primary); border: 1px solid var(--border);" title="Generate ID"><span class="material-symbols-outlined" style="font-size: 18px;">magic_button</span></button>
+                                <input type="text" id="excessBox" placeholder="Ex-..." autocomplete="off" style="width: 100%; box-sizing: border-box;" onkeyup="if(event.key==='Enter') document.getElementById('excessPallet').focus()">
                             </div>
                         </div>
                         <div>
                             <label style="font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase;">Pallet Reference</label>
-                            <input type="text" id="excessPallet" placeholder="P-999" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') addExcessScan()">
+                            <input type="text" id="excessPallet" placeholder="P-999" autocomplete="off" style="width: 100%; box-sizing: border-box; margin-top: 4px;" onkeyup="if(event.key==='Enter') addExcessScan()">
                         </div>
                     </div>
                 </div>
@@ -1518,6 +1534,7 @@
                             <div style="flex: 1.2;">Barcode</div>
                             <div style="flex: 1;">SKU</div>
                             <div style="flex: 2;">Description</div>
+                            <div style="flex: 0.6; text-align: center;">Class</div>
                             <div style="flex: 1;">Remarks</div>
                             <div style="flex: 0.5; text-align: center;">Qty</div>
                             <div style="flex: 1.1;">Box #</div>
@@ -1704,6 +1721,21 @@
             </div>
         </div>
 
+        <!-- Generic Confirmation Modal -->
+        <div id="confirmationModal" class="modal-overlay hidden" onclick="closeConfirmationModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3 id="confirmModalTitle">Confirm Action</h3>
+                    <button onclick="closeConfirmationModal()" style="background:none; color:var(--text-light); padding:0"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <p id="confirmModalMessage" style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 24px; line-height: 1.5;"></p>
+                <div id="confirmModalActions" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Buttons dynamically injected here -->
+                </div>
+                <button onclick="closeConfirmationModal()" style="width:100%; margin-top:15px; background:var(--bg); color:var(--text); font-size: 0.8rem;">Dismiss</button>
+            </div>
+        </div>
+
         <!-- Pick Zone Selection Modal -->
         <div id="zoneModal" class="modal-overlay hidden" onclick="closeZoneModal()">
             <div class="modal-content" onclick="event.stopPropagation()">
@@ -1734,7 +1766,8 @@
                 </div>
                 <p style="font-size: 0.75rem; color: var(--text-light); margin-top: 15px; text-align: center;">
                     Schedule: Date, Area, Shift, Time, HC<br>
-                    Location: Aisle, Area, Location
+                    Location: Aisle, Area, Location<br>
+                    SKU Master: Barcode, SKU, Description, Class
                 </p>
             </div>
         </div>
@@ -1932,6 +1965,7 @@
             excessLogisticsLocked: false,
             activeExcessSubTab: 'log',
             activeDcCode: '',
+            lastExcessScanTime: Date.now(),
             excessPage: 1,
             excessRowsPerPage: 10
         };
@@ -2468,16 +2502,30 @@
             document.getElementById('registerModal').classList.add('hidden');
         }
 
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').classList.add('hidden');
+        }
+
         async function lookupSku(barcode) {
             if (!barcode || !supabaseClient) return;
             const val = barcode.trim();
+
+            // Barcode validation: Integer only and max 15 digits
+            if (!/^\d+$/.test(val)) {
+                showToast("Barcode must contain numbers only", "error");
+                return;
+            }
+            if (val.length > 15) {
+                showToast("Barcode cannot exceed 15 digits", "error");
+                return;
+            }
             
             document.getElementById('excessSku').value = "Searching...";
             document.getElementById('excessDesc').value = "Searching...";
 
             const { data, error } = await supabaseClient
                 .from('sku_master')
-                .select('sku, description')
+                .select('sku, description, classification')
                 .eq('barcode', val)
                 .maybeSingle();
 
@@ -2486,16 +2534,22 @@
                 showToast("Database Error: " + error.message, "error");
                 document.getElementById('excessSku').value = "DB ERROR";
                 document.getElementById('excessDesc').value = "Check console for details";
+                document.getElementById('excessClass').value = "DB ERROR";
                 return;
             }
 
             if (data) {
                 document.getElementById('excessSku').value = data.sku || '--';
                 document.getElementById('excessDesc').value = data.description || '--';
+                document.getElementById('excessClass').value = data.classification || '--';
+                showToast("SKU Found", "success");
                 document.getElementById('excessQty').focus();
             } else {
                 document.getElementById('excessSku').value = "NOT FOUND";
                 document.getElementById('excessDesc').value = "N/A - Item not in Master";
+                document.getElementById('excessClass').value = "NOT FOUND";
+                showToast("⚠️ ITEM NOT IN MASTER!", "error");
+                playAlertSound();
                 document.getElementById('excessQty').focus();
             }
         }
@@ -2512,7 +2566,7 @@
                     const lines = text.split('\n');
                     const payloads = [];
                     
-                    // Expects CSV: barcode, sku, description
+                    // Expects CSV: barcode, sku, description, classification
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim();
                         if (!line) continue;
@@ -2522,7 +2576,8 @@
                             payloads.push({ 
                                 barcode: parts[0], 
                                 sku: parts[1], 
-                                description: parts[2] || '--' 
+                                description: parts[2] || '--',
+                                classification: parts[3] || '--'
                             });
                         }
                     }
@@ -2613,9 +2668,32 @@
             const barcode = document.getElementById('excessBarcode').value;
             const sku = document.getElementById('excessSku').value;
             const description = document.getElementById('excessDesc').value;
+            const classification = document.getElementById('excessClass').value;
             const qty = document.getElementById('excessQty').value;
             const box = document.getElementById('excessBox').value;
             const pallet = document.getElementById('excessPallet').value;
+
+            // Barcode validation: Integer only and max 15 digits
+            if (!/^\d+$/.test(barcode)) {
+                showToast("Barcode must contain numbers only", "error");
+                return;
+            }
+            if (barcode.length > 15) {
+                showToast("Barcode cannot exceed 15 digits", "error");
+                return;
+            }
+
+            // Pattern validation for Stocks Transfer
+            if (remarks === 'Stocks Transfer') {
+                if (!/^SVI-B\d+$/.test(box)) {
+                    showToast("For Stocks Transfer, Box must follow pattern SVI-B + number (e.g. SVI-B1)", "error");
+                    return;
+                }
+                if (!/^SVI-P\d+$/.test(pallet)) {
+                    showToast("For Stocks Transfer, Pallet must follow pattern SVI-P + number (e.g. SVI-P1)", "error");
+                    return;
+                }
+            }
 
             // Validation to avoid accidental barcode input in pallet field (detects long numeric strings)
             if (pallet.length > 10 && /^\d+$/.test(pallet)) {
@@ -2644,6 +2722,7 @@
                 barcode: barcode,
                 sku: (sku === "NOT FOUND" || sku === "Searching...") ? "--" : sku,
                 description: (description === "Searching...") ? "--" : description,
+                classification: (classification === "Searching..." || classification === "NOT FOUND") ? "--" : classification,
                 qty: parseInt(qty),
                 box: box || '--',
                 pallet: pallet || '--',
@@ -2672,10 +2751,13 @@
                 return;
             }
             state.editingExcessId = null;
+            state.lastExcessScanTime = Date.now();
 
-            showToast("Excess entry saved!", "success");
+            showToast(`Logged to Pallet ${pallet}`, "success");
             state.excessLogisticsVisible = false;
             saveData();
+            
+            // Clear only item-specific fields to allow batch scanning into same Pallet/Box
             document.getElementById('excessBarcode').value = '';
             document.getElementById('excessQty').value = '';
             document.getElementById('excessBox').value = '';
@@ -2715,6 +2797,7 @@
             document.getElementById('excessBarcode').value = scan.barcode;
             document.getElementById('excessSku').value = scan.sku || '';
             document.getElementById('excessDesc').value = scan.description || '';
+            document.getElementById('excessClass').value = scan.classification || '';
             document.getElementById('excessQty').value = scan.qty;
             document.getElementById('excessBox').value = scan.box === '--' ? '' : scan.box;
             document.getElementById('excessPallet').value = scan.pallet === '--' ? '' : scan.pallet;
@@ -2725,7 +2808,16 @@
         }
 
         async function deleteExcessScan(id) {
-            if (!confirm("Delete this log entry?")) return;
+            const modal = document.getElementById('confirmationModal');
+            document.getElementById('confirmModalTitle').innerText = "Delete Entry";
+            document.getElementById('confirmModalMessage').innerText = "Are you sure you want to delete this log entry? This cannot be undone.";
+            const actions = document.getElementById('confirmModalActions');
+            actions.innerHTML = `<button onclick="executeDeleteExcess('${id}')" style="background: var(--danger); padding: 12px;">Delete Permanently</button>`;
+            modal.classList.remove('hidden');
+        }
+
+        async function executeDeleteExcess(id) {
+            closeConfirmationModal();
             toggleLoader(true);
             const { error } = await supabaseClient.from('excess_scans').delete().eq('id', id);
             toggleLoader(false);
@@ -2764,82 +2856,155 @@
         }
 
         async function exportExcessToExcel() {
-            const dateFilter = document.getElementById('excessFilterDate').value;
-            const boxFilter = document.getElementById('excessBoxSearch').value.toLowerCase();
-            const genSearch = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
+            const modal = document.getElementById('confirmationModal');
+            document.getElementById('confirmModalTitle').innerText = "Export Report";
+            document.getElementById('confirmModalMessage').innerHTML = `
+                <p>Choose the data range you wish to export.</p>
+                <div style="margin-top:15px; display:flex; flex-direction:column; gap:10px; text-align:left;">
+                    <label style="font-size:0.75rem; font-weight:700; color:var(--text-light); text-transform:uppercase;">Full History Range (Line ID)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="exportFromId" placeholder="From ID" style="flex:1; padding:8px; border: 1px solid var(--border); border-radius:4px;">
+                        <input type="number" id="exportToId" placeholder="To ID" style="flex:1; padding:8px; border: 1px solid var(--border); border-radius:4px;">
+                    </div>
+                    <small style="font-size:0.65rem; color:var(--text-light)">Enter starting and ending IDs. Use <b>999999</b> for the latest record.</small>
+                </div>
+            `;
+            const actions = document.getElementById('confirmModalActions');
             
-            let filteredData = [...state.excessScans];
+            actions.innerHTML = `
+                <button id="btnExportFiltered" style="background: var(--primary); padding: 12px;">Export Current Filtered View</button>
+                <button id="btnExportAll" style="background: var(--success); padding: 12px;">Export Full History (All Data)</button>
+            `;
+            modal.classList.remove('hidden');
 
-            if (state.activeDcCode) filteredData = filteredData.filter(s => s.dcCode === state.activeDcCode);
-            if (dateFilter) {
-                // If date is set, check if user wants a full export for that day vs current filtered view
-                const isFiltered = boxFilter || genSearch;
-                const exportAllForDate = isFiltered ? confirm(`Export ALL records for ${dateFilter}? (Select 'Cancel' to export only your current filtered view)`) : true;
-                
-                const filterISO = toLocalISO(dateFilter);
-                filteredData = filteredData.filter(s => toLocalISO(s.timestamp) === filterISO);
-                
-                if (!exportAllForDate) {
-                    if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
-                    if (genSearch) filteredData = filteredData.filter(s => 
-                        (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || 
-                        (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
-                        (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
-                        (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
-                        (s.box && s.box.toString().toLowerCase().includes(genSearch)) ||
-                        (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
-                }
+            document.getElementById('btnExportFiltered').onclick = () => processExport('filtered');
+            document.getElementById('btnExportAll').onclick = () => processExport('all');
+        }
+
+        async function processExport(mode) {
+            const fromIdVal = document.getElementById('exportFromId')?.value;
+            const toIdVal = document.getElementById('exportToId')?.value;
+
+            closeConfirmationModal();
+            toggleLoader(true);
+            let dataToExport = [];
+
+            if (mode === 'filtered') {
+                const dateFilterVal = document.getElementById('excessFilterDate')?.value || '';
+                const boxSearchVal = document.getElementById('excessBoxSearch')?.value.toLowerCase() || '';
+                const genSearchVal = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
+                const remarkFilterVal = document.getElementById('excessRemarkFilter')?.value || '';
+                const filterISOVal = dateFilterVal ? toLocalISO(dateFilterVal) : null;
+
+                dataToExport = state.excessScans.filter(s => {
+                    const matchesDc = !state.activeDcCode || s.dcCode === state.activeDcCode;
+                    const matchesBox = !boxSearchVal || (s.box && s.box.toString().toLowerCase().includes(boxSearchVal));
+                    const matchesDate = !filterISOVal || (toLocalISO(s.timestamp) === filterISOVal);
+                    const matchesRemark = !remarkFilterVal || s.remarks === remarkFilterVal;
+                    const matchesGen = !genSearchVal || 
+                        (s.barcode && s.barcode.toLowerCase().includes(genSearchVal)) || 
+                        (s.scannerName && s.scannerName.toLowerCase().includes(genSearchVal)) || 
+                        (s.scannerId && s.scannerId.toLowerCase().includes(genSearchVal)) || 
+                        (s.pallet && s.pallet.toLowerCase().includes(genSearchVal)) || 
+                        (s.box && s.box.toString().toLowerCase().includes(genSearchVal)) ||
+                        (s.remarks && s.remarks.toLowerCase().includes(genSearchVal));
+                    return matchesBox && matchesDate && matchesGen && matchesDc && matchesRemark;
+                });
             } else {
-                if (boxFilter) filteredData = filteredData.filter(s => s.box && s.box.toString().toLowerCase().includes(boxFilter));
-                if (genSearch) filteredData = filteredData.filter(s => 
-                    (s.barcode && s.barcode.toLowerCase().includes(genSearch)) || 
-                    (s.scannerName && s.scannerName.toLowerCase().includes(genSearch)) || 
-                    (s.scannerId && s.scannerId.toLowerCase().includes(genSearch)) || 
-                    (s.pallet && s.pallet.toLowerCase().includes(genSearch)) || 
-                    (s.box && s.box.toString().toLowerCase().includes(genSearch)) ||
-                    (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
+                let query = supabaseClient.from('excess_scans').select('*').order('timestamp', { ascending: false });
+                
+                if (fromIdVal && fromIdVal.trim() !== "") {
+                    query = query.gte('id', parseInt(fromIdVal.trim()));
+                }
+                if (toIdVal && toIdVal.trim() !== "" && toIdVal !== "999999") {
+                    query = query.lte('id', parseInt(toIdVal.trim()));
+                }
+
+                const { data, error } = await query;
+                if (error) {
+                    toggleLoader(false);
+                    return showToast("Fetch Error: " + error.message, "error");
+                }
+                dataToExport = data;
             }
 
-            if (filteredData.length === 0) return showToast("No records found matching these filters!", "error");
+            if (dataToExport.length === 0) {
+                toggleLoader(false);
+                return showToast("No records found to export!", "error");
+            }
 
-            toggleLoader(true);
             setTimeout(() => {
                 try {
-                    const headers = ["Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "SKU", "Description", "Remarks", "Qty", "Box Number", "Pallet Ref", "DC Code"];
-                    const csvRows = [headers.join(',')];
-                    filteredData.forEach(s => {
-                        const row = [
-                            new Date(s.timestamp).toLocaleString(),
-                            s.scannerName,
-                            s.scannerId || '--',
-                            s.assistant1Name || '--',
-                            s.assistant1Id || '--',
-                            s.assistant2Name || '--',
-                            s.assistant2Id || '--',
-                            s.barcode,
-                            s.sku || '--',
-                            s.description || '--',
-                            s.remarks || '--',
-                            s.qty,
-                            s.box,
-                            s.pallet,
-                            s.dcCode || '--'
-                        ]; // Ensure 'remarks' is already part of the 's' object
-                        csvRows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
-                    });
-                    downloadFile(csvRows.join("\n"), `Excess_Smart_Export_${new Date().toISOString().slice(0,10)}.csv`);
-                    showToast(`Exported ${filteredData.length} records successfully.`, "success");
-                } finally {
-                    toggleLoader(false);
-                }
-            }, 100);
+                    let csvContent = "";
+                    const extractionTime = new Date().toLocaleString();
+                    // Create a filename-safe local timestamp (YYYY-MM-DD_HH-MM-SS)
+                    const now = new Date();
+                    const fileTimestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_` +
+                                        `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+                    let fileName = "";
+                    const reportName = state.activeExcessSubTab === 'summary' ? "Excess Scanner Summary" : "Excess Detailed Log";
+                    const totalLines = dataToExport.length;
+                    const fromId = dataToExport.length > 0 ? dataToExport[dataToExport.length - 1].id : '--';
+                    const toId = dataToExport.length > 0 ? dataToExport[0].id : '--';
+
+                    // Created a Summary Header section to act as the "Summary Sheet"
+                    let summaryHeader = `"REPORT SUMMARY"\n"Report Name","${reportName}"\n"DC Filter","${state.activeDcCode || 'All DCs'}"\n"Extracted At","${extractionTime}"\n"Total Records","${totalLines}"\n"ID Range","From ID ${fromId} to ID ${toId}"\n\n`;
+
+                    if (state.activeExcessSubTab === 'summary') {
+                        // Export Scanner Summary
+                        const headers = ["Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Total Scans", "Total Units", "Unique Items", "Last Active"];
+                        const scannerStats = {};
+                        dataToExport.forEach(s => {
+                            const id = s.scannerId || 'Unknown';
+                            if (!scannerStats[id]) {
+                                scannerStats[id] = { id, name: s.scannerName || id, count: 0, qty: 0, items: new Set(), last: s.timestamp, a1: s.assistant1Name, a1id: s.assistant1Id, a2: s.assistant2Name, a2id: s.assistant2Id };
+                            }
+                            scannerStats[id].count++;
+                            scannerStats[id].qty += (parseInt(s.qty) || 0);
+                            scannerStats[id].items.add(s.barcode);
+                            if (new Date(s.timestamp) > new Date(scannerStats[id].last)) scannerStats[id].last = s.timestamp;
+                        });
+
+                        const rows = [headers.join(",")];
+                        Object.values(scannerStats).forEach(stat => {
+                            const row = [stat.name, stat.id, stat.a1, stat.a1id, stat.a2, stat.a2id, stat.count, stat.qty, stat.items.size, new Date(stat.last).toLocaleString()];
+                            rows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
+                        });
+                        csvContent = summaryHeader + rows.join("\n");
+                        fileName = `Excess_Scanner_Summary_${fileTimestamp}.csv`;
+                    } else {
+                        // Export Detailed Log
+                        
+                        const headers = ["Line No", "Timestamp", "Lead Scanner", "Lead ID", "Assistant 1", "Asst 1 ID", "Assistant 2", "Asst 2 ID", "Barcode", "SKU", "Description", "Classification", "Remarks", "Qty", "Box Number", "Pallet Ref", "DC Code"];
+                        const rows = [headers.join(',')];
+                        dataToExport.forEach(s => {
+                            const row = [
+                                s.id, // Added Line Number from Supabase ID
+                                new Date(s.timestamp).toLocaleString(),
+                                s.scannerName, s.scannerId || '--',
+                                s.assistant1Name || '--', s.assistant1Id || '--',
+                                s.assistant2Name || '--', s.assistant2Id || '--',
+                                s.barcode, s.sku || '--', s.description || '--',
+                                s.classification || '--',
+                                s.remarks || '--', s.qty, s.box, s.pallet, s.dcCode || '--'
+                            ];
+                            rows.push(row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(","));
+                        });
+                        csvContent = summaryHeader + rows.join("\n");
+                        fileName = `Excess_Detailed_Log_${fileTimestamp}.csv`;
+                    }
+
+                    downloadFile(csvContent, fileName);
+                    showToast(`Exported ${dataToExport.length} records.`, "success");
+                    } finally {
+                        toggleLoader(false);
+                    }
+                }, 100);
         }
 
         async function smartClearExcessData() {
-            const dateFilter = document.getElementById('excessFilterDate').value;
             const boxFilter = document.getElementById('excessBoxSearch').value.toLowerCase();
             const genSearch = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
-            
             let filteredData = [...state.excessScans];
 
             if (state.activeDcCode) filteredData = filteredData.filter(s => s.dcCode === state.activeDcCode);
@@ -2858,22 +3023,35 @@
                 (s.remarks && s.remarks.toLowerCase().includes(genSearch)));
 
             if (filteredData.length === 0) return showToast("No records found matching current filters to clear.", "error");
-            if (!confirm(`Are you sure you want to PERMANENTLY DELETE ${filteredData.length} filtered records from the database? This action cannot be undone.`)) return;
 
-            toggleLoader(true);
-            try {
-                const idsToDelete = filteredData.map(s => s.id);
-                // Batch delete from Supabase using .in()
-                const { error } = await supabaseClient.from('excess_scans').delete().in('id', idsToDelete);
-                if (error) throw error;
+            const modal = document.getElementById('confirmationModal');
+            const title = document.getElementById('confirmModalTitle');
+            const msg = document.getElementById('confirmModalMessage');
+            const actions = document.getElementById('confirmModalActions');
+
+            title.innerText = "Confirm Deletion";
+            msg.innerHTML = `Are you sure you want to <strong>PERMANENTLY DELETE</strong> ${filteredData.length} filtered records? This action cannot be undone.`;
+            
+            actions.innerHTML = `
+                <button id="btnConfirmDelete" style="background: var(--danger); padding: 12px;">Yes, Delete Records</button>
+            `;
+            modal.classList.remove('hidden');
+
+            document.getElementById('btnConfirmDelete').onclick = async () => {
+                closeConfirmationModal();
+                toggleLoader(true);
+                try {
+                    const idsToDelete = filteredData.map(s => s.id);
+                    const { error } = await supabaseClient.from('excess_scans').delete().in('id', idsToDelete);
+                    if (error) throw error;
                 
-                showToast(`Successfully cleared ${filteredData.length} records.`, "success");
-                // The realtime subscription handles the local state update automatically.
-            } catch (err) {
-                showToast("Clear failed: " + err.message, "error");
-            } finally {
-                toggleLoader(false);
-            }
+                    showToast(`Successfully cleared ${filteredData.length} records.`, "success");
+                } catch (err) {
+                    showToast("Clear failed: " + err.message, "error");
+                } finally {
+                    toggleLoader(false);
+                }
+            };
         }
 
         async function handleMemberUpload(event) {
@@ -4141,6 +4319,7 @@
             const filterISOVal = dateFilterVal ? toLocalISO(dateFilterVal) : null;
             const genSearchVal = (document.getElementById('excessGeneralSearch')?.value || '').toLowerCase();
             const remarkFilterVal = document.getElementById('excessRemarkFilter')?.value || '';
+            const scannerIdVal = document.getElementById('excessScannerInput')?.value || '';
 
             const filteredExcess = state.excessScans.filter(s => {
                 const matchesDc = !state.activeDcCode || s.dcCode === state.activeDcCode;
@@ -4153,7 +4332,8 @@
                     (s.scannerId && s.scannerId.toLowerCase().includes(genSearchVal)) || 
                     (s.pallet && s.pallet.toLowerCase().includes(genSearchVal)) || 
                     (s.box && s.box.toString().toLowerCase().includes(genSearchVal)) ||
-                    (s.remarks && s.remarks.toLowerCase().includes(genSearchVal));
+                        (s.remarks && s.remarks.toLowerCase().includes(genSearchVal)) ||
+                        (s.classification && s.classification.toLowerCase().includes(genSearchVal));
                 return matchesBox && matchesDate && matchesGen && matchesDc && matchesRemark;
             });
 
@@ -4407,15 +4587,20 @@
             }
 
             // Update Excess Scanner Dropdown
-            ['excessScannerInput', 'excessAssistant1Input', 'excessAssistant2Input'].forEach(id => {
+            const scannerSearchTerm = document.getElementById('excessScannerSearch')?.value.toLowerCase() || '';
+            ['excessScannerInput', 'excessAssistant1Input', 'excessAssistant2Input'].forEach(id => { // Keep existing logic for assistants
                 const el = document.getElementById(id);
                 if (el && state.members.length > 0) {
                     let currentVal = el.value;
-                    const options = state.members
-                    .filter(m => m.role === 'Scanner')
-                    .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
-                    
-                    el.innerHTML = `<option value="" ${id !== 'excessScannerInput' ? 'selected' : 'disabled'}>${id === 'excessScannerInput' ? 'Select Lead...' : 'None'}</option>` + options;
+                    const filteredScanners = state.members.filter(m => 
+                        m.role === 'Scanner' && 
+                        (m.name.toLowerCase().includes(scannerSearchTerm) || m.userid.toLowerCase().includes(scannerSearchTerm))
+                    );
+                    const options = filteredScanners
+                        .map(m => `<option value="${m.userid}">${m.name} (${m.userid} - ${m.role})</option>`).join('');
+
+                    // For excessScannerInput, add the "ALL SCANNERS" option
+                    el.innerHTML = `<option value="">${id === 'excessScannerInput' ? 'ALL SCANNERS' : 'None'}</option>` + options;
                     if (currentVal) el.value = currentVal;
                     else if (id === 'excessScannerInput' && localStorage.getItem('preferredScannerId')) el.value = localStorage.getItem('preferredScannerId');
                 }
@@ -4444,6 +4629,22 @@
             });
             const boxBtn = document.querySelector('button[onclick="generateBoxNumber()"]');
             if (boxBtn) { boxBtn.disabled = isEntryDisabled; boxBtn.style.opacity = isEntryDisabled ? '0.5' : '1'; }
+
+            // Update placeholders based on Remarks selection
+            const remarksVal = document.getElementById('excessRemarks')?.value;
+            const boxInput = document.getElementById('excessBox');
+            const palletInput = document.getElementById('excessPallet');
+            if (boxInput && palletInput) {
+                if (remarksVal === 'Stocks Transfer') {
+                    boxInput.placeholder = "SVI-B...";
+                    palletInput.placeholder = "SVI-P...";
+                    boxInput.placeholder = "SVI-B1";
+                    palletInput.placeholder = "SVI-P1";
+                } else {
+                    boxInput.placeholder = "Ex-...";
+                    palletInput.placeholder = "P-999";
+                }
+            }
 
             // Render Excess Scan List
             const excessScanList = document.getElementById('excessScanList');
@@ -4479,6 +4680,7 @@
                         <div style="flex: 1.2; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${highlightMatch(s.barcode, genSearchVal)}</div>
                         <div style="flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${highlightMatch(s.sku || '--', genSearchVal)}</div>
                         <div style="flex: 2; font-size: 0.75rem; white-space: normal; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;" title="${s.description || '--'}">${highlightMatch(s.description || '--', genSearchVal)}</div>
+                        <div style="flex: 0.6; text-align: center; font-weight: 700;">${highlightMatch(s.classification || '--', genSearchVal)}</div>
                         <div style="flex: 1; font-size: 0.7rem; color: var(--primary); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${s.remarks || '--'}">${highlightMatch(s.remarks || '--', genSearchVal)}</div>
                         <div style="flex: 0.5; text-align: center; color: var(--primary); font-weight: 800;">${s.qty}</div>
                         <div style="flex: 1.1;" title="${s.box}">${highlightMatch(s.box, genSearchVal || boxSearchVal)}</div>
@@ -5086,12 +5288,27 @@
         }
         setInterval(checkThresholdAlerts, 30000); // Check every 30 seconds
 
+        // Inactivity Timer for Excess Scan Lead Scanner
+        setInterval(() => {
+            if (state.lastExcessScanTime && (Date.now() - state.lastExcessScanTime > 3600000)) { // 1 Hour
+                const scannerInput = document.getElementById('excessScannerInput');
+                if (scannerInput && scannerInput.value !== "") {
+                    scannerInput.value = "";
+                    localStorage.setItem('preferredScannerId', "");
+                    state.lastExcessScanTime = Date.now();
+                    render();
+                    showToast("Lead Scanner reset due to 1hr inactivity", "info");
+                }
+            }
+        }, 60000); // Check every minute
+
         updateClock();
 
         // Global listener for scanner selection persistence
         document.addEventListener('change', (e) => {
             if (e.target && e.target.id === 'excessScannerInput') {
                 localStorage.setItem('preferredScannerId', e.target.value);
+                render(); // Automatic filter update when lead scanner changes
             }
         });
 
@@ -5115,12 +5332,11 @@
         if (supabaseClient) {
             fetchInitialData(true);
             initRealtime();
-            // Auto-refresh every 2 seconds to ensure cross-device synchronization
-            setInterval(() => fetchInitialData(false), 2000);
         } else {
             render();
         }
     </script>
 </body>
 </html>
+</body>
 </html>
